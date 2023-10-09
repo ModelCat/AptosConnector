@@ -1,6 +1,6 @@
 # A sample Python project
 
-![Python Logo](https://www.python.org/static/community_logos/python-logo.png "Sample inline image")
+![Eta Compute logo](https://etacompute.com/wp-content/uploads/2021/09/eta-logo.svg "Eta Compute")
 
 A sample project that exists as an aid to the [Python Packaging User
 Guide][packaging guide]'s [Tutorial on Packaging and Distributing
