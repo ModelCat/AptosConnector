@@ -118,7 +118,7 @@ class DatasetUploader:
                     except:
                         log.warning(f'Failed parsing line: {line}')
             
-            run_cli_command(command=cmd, cwd=self.dataset_root, verbose=bool(self.verbose), line_parser=report_progress)
+            run_cli_command(command=cmd, cwd='.', verbose=bool(self.verbose), line_parser=report_progress)
 
         print('-'*100)
         print('Upload complete. You can view your dataset at: ' \
