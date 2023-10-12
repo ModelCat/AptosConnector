@@ -59,10 +59,13 @@ class DatasetUploader:
             return True
 
         print('Veryfying dataset signature...')
+        try:
+            with open(validator_log_path) as fp:
+                text = fp.read()
+            signature_sha = self.get_sha(text)
+        except FileNotFoundError:
+            signature_sha = None
 
-        with open(validator_log_path) as fp:
-            text = fp.read()
-        signature_sha = self.get_sha(text)
         if signature_sha is None:
             print('Dataset validation mark not found. Please run validation script first.')
             return False
