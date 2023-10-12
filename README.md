@@ -1,39 +1,117 @@
-# A sample Python project
+# AptosConnector
 
-![Eta Compute logo](https://etacompute.com/wp-content/uploads/2021/09/eta-logo.svg "Eta Compute")
+## Introduction
 
-A sample project that exists as an aid to the [Python Packaging User
-Guide][packaging guide]'s [Tutorial on Packaging and Distributing
-Projects][distribution tutorial].
+This package is design to validate and upload user datasets to Aptos Edge ML patform
 
-This project does not aim to cover best practices for Python project
-development as a whole. For example, it does not provide guidance or tool
-recommendations for version control, documentation, or testing.
+## Installation
 
-[The source for this project is available here][src].
+Utility is fully supported on Linux, Windows 10/11 and MacOS
 
-The metadata for a Python project is defined in the `pyproject.toml` file,
-an example of which is included in this project. You should edit this file
-accordingly to adapt this sample project to your needs.
+### Prerequisites
+* `AWS CLI v2`. For more information consult the installation guide: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+* `Python >=3.7` installation (you can use `conda` or virtual environments `venv`)
+* `git` (if you indent to clone from repository directly)
 
-----
+### Installing by cloning from GitHub
 
-This is the README file for the project.
+Start your terminal or command line.
+```bash
+# if using python venv or conda activate your environment e.g.:
+conda activate aptos_env
+```
 
-The file should use UTF-8 encoding and can be written using
-[reStructuredText][rst] or [markdown][md use] with the appropriate [key set][md
-use]. It will be used to generate the project webpage on PyPI and will be
-displayed as the project homepage on common code-hosting services, and should be
-written for that purpose.
+Clone and install python package:
+```bash
+cd ~/ # will install in user folder
+git clone git@github.com:Eta-Compute/AptosConnector.git
+cd AptosConnector
+pip install -e .
+```
 
-Typical contents for this file would include an overview of the project, basic
-usage examples, etc. Generally, including the project changelog in here is not a
-good idea, although a simple “What's New” section for the most recent version
-may be appropriate.
+### Installing via `pip`
 
-[packaging guide]: https://packaging.python.org
-[distribution tutorial]: https://packaging.python.org/tutorials/packaging-projects/
-[src]: https://github.com/pypa/sampleproject
-[rst]: http://docutils.sourceforge.net/rst.html
-[md]: https://tools.ietf.org/html/rfc7764#section-3.5 "CommonMark variant"
-[md use]: https://packaging.python.org/specifications/core-metadata/#description-content-type-optional
+~~~
+Note: This modality is not supported yet
+~~~
+
+## User guide
+
+Currently two main functionalities are supported:
+* AptosConnector setup (one time only)
+* Dataset validation
+* Dataset upload
+
+### Dataset prepartion
+
+In order to prepare your dataset, please follow our guide: [Dataset preparation guide](docs/dataset_preparation.md)
+
+### AptosConnector setup
+
+This one-time only procedure will configure your access to Aptos platform. You will need to provide your `Aptos Group ID`, `Aptos AWS Access Key ID` and `Aptos AWS Secret Access Key`:
+
+```bash
+(aptos_env) user@ubuntu: aptos_setup
+Welcome to AptosConnector one-time setup wizzard.
+We'll get you started in just a few simple steps!
+--------------------------------------------------
+AWS CLI installation verified.
+--------------------------------------------------
+Aptos Group ID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX
+Aptos AWS Access Key ID: XXXXXXXXXXXXXXXXXXXX
+Aptos AWS Secret Access Key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+--------------------------------------------------
+Configuration successful!
+
+Now you can use:
+        `aptos_validate` to check your dataset for errors and verify Aptos interoperability
+        `aptos_upload` to upload dataset to Aptos platform
+
+```
+One configuration is done, you can proceed with dataset validation and upload
+
+### Dataset validation
+Validates user dataset to endure conformity with Aptos dataset format. Any issues will be displayed to the user so that they can be correted prior to upload. If validation is passed succesfully your dataset will be signed and ready to upload. Note that you cannot upload the dataset without validating it first.
+```
+aptos_validate
+usage: aptos_validate [-h] -d DATASET_PATH [--verbose]
+```
+Example usage:
+
+```bash
+(aptos_env) user@ubuntu:~$ aptos_validate -d ~/datasets/tf_test
+                        AptosConnector (v0.0.1) - dataset validation utility
+
+-------------------------------------------- Messages: ---------------------------------------------
+WARNING: The dataset is missing the "thumbnail.jpg" file. Pick one image from the dataset, name it as "thumbnail.jpg" and place it inside the dataset root directory.
+WARNING: There are 3 duplicate images (with same content, but different name) in your dataset. Check the"dataset validator log" file in the Dataset Analysis job to see details about those images.
+WARNING: "dataset_infos.json" doesn't contain a valid entry for "num_examples" for split "train", 1222 images were found in the dataset root directory.
+
+--------------------------------------------- Summary: ---------------------------------------------
+No critical errors found
+Creating dataset signature ...
+Validation passed and signed: f3322dab7dccb61a66e611ee0dbaff1207b552b647bbb3d4066e6f953fc96ad1
+```
+
+### Dataset upload
+
+This utility will upload dataset to the platform.
+
+```bash
+(aptos_env) user@ubuntu:~$ aptos_upload -d ~/datasets/tf_test
+                        AptosConnector (v0.0.1) - dataset validation utility
+
+----------------------------------------------------------------------------------------------------
+Veryfying dataset signature...
+Done!
+S3 access verified
+Found 3693 files in the dataset: 505.73 MB
+
+Uploading file: tfds/tf_test-validation.tfrecord-00000-of-00001
+100%|███████████████████████████████████████████████████████████| 3693/3693 [02:25<00:00, 25.46it/s]
+----------------------------------------------------------------------------------------------------
+Upload complete. You can view your dataset at: https://aptos.training/datasets/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX/tf_test
+```
+## Developed by:
+
+<img src="https://etacompute.com/wp-content/uploads/2021/09/eta-logo.svg" width="200">

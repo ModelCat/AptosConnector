@@ -488,8 +488,8 @@ def validate_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset_path", help="Path to the root directory of the dataset.", type=str,
                         required=True)
-    parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
-                        default=None)
+    # parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
+    #                     default=None)
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help="Verbosity level: -v, -vv")
     # parser.add_argument("-a", "--annotations_required",
@@ -504,9 +504,8 @@ def validate_cli():
         print(f"Validating dataset with args: {args}.")
 
     dataset_path = args.dataset_path
-    working_dir = args.working_dir or dataset_path
 
-    dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=working_dir)
+    dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=dataset_path)
     # messages = dataset_validator.validate_dataset(args.annotations_required)
     messages = dataset_validator.validate_dataset()
 
