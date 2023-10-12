@@ -76,7 +76,7 @@ class DatasetValidator:
 
         if not osp.exists(dataset_infos_path):
             self.messages.append({'type': 'error', 'message': f'"dataset_infos.json" does not exist'})
-            self.messages.append({'type': 'warning', 'message': f'^^^^^ Validation stopped due to a critical error'})
+            self.messages.append({'type': 'critical', 'message': f'^^^^^ Validation stopped due to a critical error'})
             return self.messages
 
         images_dir = osp.join(self.root_dir, "images")
