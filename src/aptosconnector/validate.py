@@ -11,10 +11,17 @@ import numpy as np
 from pathlib import Path
 from itertools import combinations
 from collections import Counter
-from .utils import file_sha256
+from .utils import hash_dataset
+import pkg_resources
 
 class DatasetValidator:
+
     def __init__(self, dataset_root_dir: str, working_dir: str = None):
+
+        if not osp.exists(dataset_root_dir):
+            print(f'Path does not exists: {dataset_root_dir}')
+            exit(1)
+
         self.root_dir = dataset_root_dir
         self.working_dir = working_dir
         self.log_filename = 'dataset_validator_log.txt'
@@ -42,8 +49,9 @@ class DatasetValidator:
             print(f'Dataset not validated, {erros_count} error(s) found.')
         else:
             print('No critical errors found')
-            sha = file_sha256(osp.join(self.root_dir, "dataset_infos.json"))
-            msg = f'Validation passed: {sha}'
+            print('Creating dataset signature ...')
+            sha = hash_dataset(self.root_dir)
+            msg = f'Validation passed and signed: {sha}'
             with open(self.log_filepath, 'a') as fp:
                 fp.write(msg+'\n')
             print(msg)
@@ -302,7 +310,7 @@ class DatasetValidator:
                                  'message': f'The annotation file "{coco_file_name}" contains annotations with '
                                             f'non-existent image IDs: '
                                             f'{list(set(ann_img_ids).difference(set(image_ids)))}. '
-                                            f'Verify all vallues of annotations[N].image_id are listed under '
+                                            f'Verify all values of annotations[N].image_id are listed under '
                                             f'images[M].id in "{coco_file_name}".'})
             if not set(ann_cat_ids).issubset(set(category_ids)):
                 messages.append({'type': 'error',
@@ -453,7 +461,6 @@ def _count_imgs_in_dir(directory: str) -> int:
 
     return image_count
 
-
 def _calculate_dir_size(directory: str) -> int:
     total_size = 0
     for dirpath, _, filenames in os.walk(directory):
@@ -463,14 +470,12 @@ def _calculate_dir_size(directory: str) -> int:
 
     return total_size
 
-
 def _calculate_split_num_imgs(coco_dict: dict, images_dir: str):
     img_count = 0
     for image in coco_dict["images"]:
         if osp.exists(osp.join(images_dir, image["file_name"])):
             img_count = img_count + 1
     return img_count
-
 
 def _calculate_split_size(coco_dict: dict, images_dir: str):
     size_bytes = 0
@@ -479,25 +484,32 @@ def _calculate_split_size(coco_dict: dict, images_dir: str):
             size_bytes = size_bytes + osp.getsize(osp.join(images_dir, image["file_name"]))
     return size_bytes
 
-def main_cli():
+def validate_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset_path", help="Path to the root directory of the dataset.", type=str,
                         required=True)
     parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
                         default=None)
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help="Verbosity level: -v, -vv")
     # parser.add_argument("-a", "--annotations_required",
     #                     help="Whether the dataset is required to have annotations. Defaults to True.", type=bool,
     #                     required=False, default=True)
 
     args, _ = parser.parse_known_args()
+
+    print(f'AptosConnector (v{pkg_resources.get_distribution("aptosconnector").version}) - dataset validation utility'.center(100))
+
+    if args.verbose:
+        print(f"Validating dataset with args: {args}.")
+
     dataset_path = args.dataset_path
     working_dir = args.working_dir or dataset_path
-
-    print(f"Validating dataset with args: {args}.")
 
     dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=working_dir)
     # messages = dataset_validator.validate_dataset(args.annotations_required)
     messages = dataset_validator.validate_dataset()
+
 
     print('\n'+f" Messages: ".center(100, '-'))
     for msg in messages:
@@ -507,4 +519,4 @@ def main_cli():
     dataset_validator.create_validation_mark()
 
 if __name__ == "__main__":
-    main_cli()
+    validate_cli()

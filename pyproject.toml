@@ -103,7 +103,9 @@ classifiers = [  # Optional
 # https://packaging.python.org/discussions/install-requires-vs-requirements/
 dependencies = [ # Optional
   "numpy",
-  "tqdm"
+  "tqdm",
+  "getpass_asterisk",
+  "dirhash"
 ]
 
 # List additional groups of dependencies here (e.g. development
@@ -137,8 +139,9 @@ test = ["coverage"]
 # which executes the function `main` from this package when invoked.
 [project.scripts]  # Optional
 # aptos_connector = "aptosconnector:main"
-aptos_validate  = "aptosconnector.validator:main_cli"
-aptos_upload    = "aptosconnector.upload:main_cli"
+aptos_validate  = "aptosconnector.validate:validate_cli"
+aptos_upload    = "aptosconnector.upload:upload_cli"
+aptos_setup     = "aptosconnector.setup:setup_cli"
 
 # This is configuration specific to the `setuptools` build backend.
 # If you are using a different build backend, you will need to change this.

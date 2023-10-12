@@ -10,21 +10,22 @@ class CLICommandError(Exception):
 
 def run_cli_command(
     command: List[str], 
+    cwd: str = None,
     env = None, 
-    verbose: bool = True, 
+    verbose: bool = False, 
     line_parser: Callable = None
 ):
     log.info('Running CLI command:' + ' '.join(command))
 
     process = subprocess.Popen(
         command,
+        cwd=cwd,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         universal_newlines=True,
         bufsize=1
     )
-    output = []
 
     while True:
         line = process.stdout.readline()
@@ -35,10 +36,6 @@ def run_cli_command(
         if verbose:
             sys.stdout.write(line.strip() + "\n")
 
-        output.append(line.strip())
-
     process.wait()
     if process.poll() != 0:
         raise CLICommandError("".join(process.stderr.readlines()))
-
-    return output
