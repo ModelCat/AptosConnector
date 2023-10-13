@@ -2,28 +2,31 @@
 
 ## Introduction
 
-This package is design to validate and upload user datasets to Aptos Edge ML patform
+This package is provides commandline tools that validate and upload User datasets to the Aptos Edge ML patform.
 
 ## Installation
 
-Utility is fully supported on Linux, Windows 10/11 and MacOS
+AptosConnector is currently supported on:
+* Linux
+* Windows 10/11
+* macOS
 
 ### Prerequisites
 * `AWS CLI v2`. For more information consult the installation guide: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 * `Python >=3.7` installation (you can use `conda` or virtual environments `venv`)
-* `git` (if you indent to clone from repository directly)
+* `git` (if you intend to clone AptosConnector directly from github)
 
 ### Installing by cloning from GitHub
 
 Start your terminal or command line.
 ```bash
-# if using python venv or conda activate your environment e.g.:
+# If using python venv or conda activate your environment e.g.:
 conda activate aptos_env
 ```
 
 Clone and install python package:
 ```bash
-cd ~/ # will install in user folder
+cd ~/ # Will install in user folder
 git clone git@github.com:Eta-Compute/AptosConnector.git
 cd AptosConnector
 pip install -e .
@@ -35,22 +38,22 @@ pip install -e .
 Note: This modality is not supported yet
 ~~~
 
-## User guide
+## User Guide
 
-Currently two main functionalities are supported:
-* AptosConnector setup (one time only)
+Currently the following functions are supported:
+* AptosConnector setup (one-time only)
 * Dataset validation
 * Dataset upload
 
-### Dataset prepartion
+### Dataset Prepartion
 
 In order to prepare your dataset, please follow our guide: [Dataset preparation guide](docs/dataset_preparation.md)
 
-### AptosConnector setup
+### AptosConnector Setup
 
-This one-time only procedure will configure your access to Aptos platform. You will need to provide your `Aptos Group ID`, `Aptos AWS Access Key ID` and `Aptos AWS Secret Access Key`:
+This one-time only procedure will configure AptosConnector's access to Aptos platform. You will need to provide your `Aptos Group ID`, `Aptos AWS Access Key ID` and `Aptos AWS Secret Access Key`:
 
-```bash
+```
 (aptos_env) user@ubuntu: aptos_setup
 Welcome to AptosConnector one-time setup wizzard.
 We'll get you started in just a few simple steps!
@@ -68,9 +71,9 @@ Now you can use:
         `aptos_upload` to upload dataset to Aptos platform
 
 ```
-One configuration is done, you can proceed with dataset validation and upload
+Once configuration is done, you can proceed with dataset validation and upload
 
-### Dataset validation
+### Dataset Validation
 Validates user dataset to endure conformity with Aptos dataset format. Any issues will be displayed to the user so that they can be correted prior to upload. If validation is passed succesfully your dataset will be signed and ready to upload. Note that you cannot upload the dataset without validating it first.
 ```
 aptos_validate
@@ -78,13 +81,13 @@ usage: aptos_validate [-h] -d DATASET_PATH [--verbose]
 ```
 Example usage:
 
-```bash
+```
 (aptos_env) user@ubuntu:~$ aptos_validate -d ~/datasets/tf_test
                         AptosConnector (v0.0.1) - dataset validation utility
 
 -------------------------------------------- Messages: ---------------------------------------------
 WARNING: The dataset is missing the "thumbnail.jpg" file. Pick one image from the dataset, name it as "thumbnail.jpg" and place it inside the dataset root directory.
-WARNING: There are 3 duplicate images (with same content, but different name) in your dataset. Check the"dataset validator log" file in the Dataset Analysis job to see details about those images.
+WARNING: There are 3 duplicate images (with same content, but different name) in your dataset. Check the "dataset validator log" file in the Dataset Analysis job to see details about those images.
 WARNING: "dataset_infos.json" doesn't contain a valid entry for "num_examples" for split "train", 1222 images were found in the dataset root directory.
 
 --------------------------------------------- Summary: ---------------------------------------------
@@ -93,11 +96,11 @@ Creating dataset signature ...
 Validation passed and signed: f3322dab7dccb61a66e611ee0dbaff1207b552b647bbb3d4066e6f953fc96ad1
 ```
 
-### Dataset upload
+### Dataset Upload
 
-This utility will upload dataset to the platform.
+This utility will upload your dataset to Aptos.
 
-```bash
+```
 (aptos_env) user@ubuntu:~$ aptos_upload -d ~/datasets/tf_test
                         AptosConnector (v0.0.1) - dataset validation utility
 

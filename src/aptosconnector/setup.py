@@ -34,20 +34,20 @@ def run_setup(verbose: int = 0):
             uuid.UUID(str(aptos_group_id))
             break
         except:            
-            print('UPS... This does not look right. `Aptos Account ID` should be a valid UUID in XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX format')
+            print('Oops... This does not look right. `Aptos Account ID` should be a valid UUID in XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX format')
 
     while 1:
         aws_access_key = input("Aptos AWS Access Key ID: ")
         if re.match('(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])', aws_access_key):
             break
-        print('UPS... This does not look right. `Aptos AWS Access Key ID` should be a 20 character alpha-numerical string e.g.: BCASYP3U22NYBISXY5IL')
+        print('Oops... This does not look right. `Aptos AWS Access Key ID` should be a 20 character alpha-numerical string e.g.: BCASYP3U22NYBISXY5IL')
     
     while 1:
         aws_secret_access_key = getpass("Aptos AWS Secret Access Key: ")
         # aws_secret_access_key   = input("Aptos AWS Secret Access Key: ")
         if re.match('(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])', aws_secret_access_key):
             break
-        print('UPS... This does not look right. `Aptos AWS Secret Access Key` should be a 40 character string e.g.: bul7642gBX/hCshqU48wXc5Xt8gO+SEdswOho2YM')
+        print('Oops... This does not look right. `Aptos AWS Secret Access Key` should be a 40 character string e.g.: bul7642gBX/hCshqU48wXc5Xt8gO+SEdswOho2YM')
 
     # configure AWS CLI
     outputs = []

@@ -353,7 +353,7 @@ class DatasetValidator:
 
         if duplicate_count > 0:
             return [{'type': 'warning',
-                     'message': f'There are {duplicate_count} duplicate images (with same content, but different name) in your dataset. Check the'
+                     'message': f'There are {duplicate_count} duplicate images (with same content, but different name) in your dataset. Check the '
                                 f'"dataset validator log" file in the Dataset Analysis job to see details about those images.'}]
         else:
             return []
