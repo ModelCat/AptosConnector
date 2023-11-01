@@ -6,11 +6,12 @@ import argparse
 import logging as log
 import os.path as osp
 import os
-from typing import List
+from typing import List, Optional
 import numpy as np
 from pathlib import Path
 from itertools import combinations
 from collections import Counter
+import shutil
 from .utils import hash_dataset
 import pkg_resources
 
@@ -83,11 +84,23 @@ class DatasetValidator:
         images_dir = osp.join(self.root_dir, "images")
         annotations_dir = osp.join(self.root_dir, "annotations")
 
-        if not osp.exists(osp.join(self.root_dir, "thumbnail.jpg")):
-            self.messages.append({'type': 'warning', 'message': f'The dataset is missing the "thumbnail.jpg" file. '
-                                                           f'Pick one image from the dataset, name it as '
-                                                           f'"thumbnail.jpg" and place it inside the '
-                                                           f'dataset root directory.'})
+        thumbnail_path = osp.join(self.root_dir, "thumbnail.jpg")
+        if not osp.exists(thumbnail_path):
+            if not self.auto_fix:
+                self.messages.append({'type': 'warning', 'message': f'The dataset is missing the "thumbnail.jpg" file. '
+                                                                    f'Pick one image from the dataset, name it as '
+                                                                    f'"thumbnail.jpg" and place it inside the '
+                                                                    f'dataset root directory.'})
+            else:
+                first_image = _get_first_image_from_dir(images_dir)
+                if first_image is not None:
+                    shutil.copy(first_image, thumbnail_path)
+                    log.debug(f'Thumbnail generated automatically from image "{first_image}"')
+                else:
+                    self.messages.append({
+                        'type': 'error',
+                        'message': 'Couldn\'t find any image to serve as a thumbnail for the dataset.'
+                    })
 
         dataset_info_messages, ann_file_names, split_names, label_names = self.validate_dataset_infos_file(dataset_name,
                                                                                                            dataset_infos_path)
@@ -484,6 +497,15 @@ def _calculate_split_size(coco_dict: dict, images_dir: str):
         if osp.exists(osp.join(images_dir, image["file_name"])):
             size_bytes = size_bytes + osp.getsize(osp.join(images_dir, image["file_name"]))
     return size_bytes
+
+def _get_first_image_from_dir(image_dir: str) -> Optional[str]:
+    for subdir, dirs, files in os.walk(image_dir):
+        for file in files:
+            # Check for image file extensions. You can add or remove as needed.
+            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                return os.path.join(subdir, file)
+
+    return None
 
 def validate_cli():
     parser = argparse.ArgumentParser()
