@@ -16,7 +16,7 @@ import pkg_resources
 
 class DatasetValidator:
 
-    def __init__(self, dataset_root_dir: str, working_dir: str = None):
+    def __init__(self, dataset_root_dir: str, working_dir: str = None, auto_fix: bool = False):
 
         if not osp.exists(dataset_root_dir):
             print(f'Path does not exists: {dataset_root_dir}')
@@ -24,6 +24,7 @@ class DatasetValidator:
 
         self.root_dir = dataset_root_dir
         self.working_dir = working_dir
+        self.auto_fix = auto_fix
         self.log_filename = 'dataset_validator_log.txt'
 
         self.messages = None
@@ -504,8 +505,9 @@ def validate_cli():
         print(f"Validating dataset with args: {args}.")
 
     dataset_path = args.dataset_path
+    auto_fix = args.auto_fix
 
-    dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=dataset_path)
+    dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=dataset_path, auto_fix=auto_fix)
     # messages = dataset_validator.validate_dataset(args.annotations_required)
     messages = dataset_validator.validate_dataset()
 
