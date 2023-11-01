@@ -491,6 +491,8 @@ def validate_cli():
                         required=True)
     # parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
     #                     default=None)
+    parser.add_argument('--auto-fix', '-af', action='store_true', default=False,
+                        help='Auto-fix smaller issues about your dataset. Resolves most warnings.')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help="Verbosity level: -v, -vv")
     # parser.add_argument("-a", "--annotations_required",
