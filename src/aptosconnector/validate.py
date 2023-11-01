@@ -73,7 +73,6 @@ class DatasetValidator:
         """
         self.messages = []
 
-        dataset_name = osp.basename(self.root_dir)
         dataset_infos_path = osp.join(self.root_dir, "dataset_infos.json")
 
         if not osp.exists(dataset_infos_path):
@@ -102,8 +101,7 @@ class DatasetValidator:
                         'message': 'Couldn\'t find any image to serve as a thumbnail for the dataset.'
                     })
 
-        dataset_info_messages, ann_file_names, split_names, label_names = self.validate_dataset_infos_file(dataset_name,
-                                                                                                           dataset_infos_path)
+        dataset_info_messages, ann_file_names, split_names, label_names = self.validate_dataset_infos_file(dataset_infos_path)
         self.messages += dataset_info_messages
 
         annotations_messages = self.validate_annotations_and_images(annotations_required, annotations_dir,
@@ -118,7 +116,7 @@ class DatasetValidator:
 
         return self.messages
 
-    def validate_dataset_infos_file(self, dataset_name: str, dataset_infos_path: str):
+    def validate_dataset_infos_file(self, dataset_infos_path: str):
 
         messages = []
         ann_file_names = []
@@ -135,8 +133,8 @@ class DatasetValidator:
             return [{'type': 'error',
                      'message': f'The "dataset_infos.json" file is not formatted correctly: {e}.'}], [], [], []
 
-
-        dataset_info = list(dataset_infos_json.values())[0]
+        dataset_name = list(dataset_infos_json.keys())[0]
+        dataset_info = dataset_infos_json[dataset_name]
 
         for key in ["splits", "task_templates"]:
             if key not in dataset_info:
