@@ -94,7 +94,7 @@ class DatasetValidator:
                 first_image = _get_first_image_from_dir(images_dir)
                 if first_image is not None:
                     shutil.copy(first_image, thumbnail_path)
-                    log.debug(f'Thumbnail generated automatically from image "{first_image}"')
+                    log.debug(f'Auto-fix: thumbnail generated automatically from image "{first_image}"')
                 else:
                     self.messages.append({
                         'type': 'error',
@@ -185,17 +185,32 @@ class DatasetValidator:
         except:
             pass
 
+        real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, 'images'))
         if "dataset_size" in dataset_info:
-            real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, 'images'))
             if type(dataset_info["dataset_size"]) == int:
                 if real_img_count != dataset_info["dataset_size"]:
-                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'})
+                    if not self.auto_fix:
+                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'})
+                    else:
+                        dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: changed dataset_size from {dataset_info['dataset_size']} to {real_img_count}.")
             else:
-                messages.append({'type': 'warning',
-                                 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "dataset_size", {real_img_count} were found in the "images" directory.'})
+                if not self.auto_fix:
+                    messages.append({'type': 'warning',
+                                     'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "dataset_size", {real_img_count} were found in the "images" directory.'})
+                else:
+                    dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                    _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                    log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json")
         else:
-            messages.append({'type': 'warning',
-                                 'message': f'"dataset_infos.json" doesn\'t contain an entry for "dataset_size".'})
+            if not self.auto_fix:
+                messages.append({'type': 'warning',
+                                    'message': f'"dataset_infos.json" doesn\'t contain an entry for "dataset_size".'})
+            else:
+                dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json")
 
         if "size_in_bytes" in dataset_info:
             real_size_in_bytes = _calculate_dir_size(self.root_dir)
@@ -504,6 +519,10 @@ def _get_first_image_from_dir(image_dir: str) -> Optional[str]:
                 return os.path.join(subdir, file)
 
     return None
+
+def _reload_dataset_infos(dataset_infos_path: str, dataset_info_dict: dict) -> None:
+    with open(dataset_infos_path, 'w') as file:
+        json.dump(dataset_info_dict, file)
 
 def validate_cli():
     parser = argparse.ArgumentParser()
