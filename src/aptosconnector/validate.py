@@ -210,8 +210,7 @@ class DatasetValidator:
             else:
                 dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                 _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
-                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json.")
-
+                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json.") 
         real_size_in_bytes = _calculate_dir_size(self.root_dir)
         if "size_in_bytes" in dataset_info:
             if type(dataset_info["size_in_bytes"]) == int:
@@ -320,16 +319,31 @@ class DatasetValidator:
                         print(f"Log file not found or can't be opened: {self.log_filepath}")
 
             if len(imgs_without_anns) > 0:
-                messages.append({'type': 'warning',
-                                 'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'})
-                if self.log_filepath is not None:
-                    try:
-                        with open(self.log_filepath, 'a') as file:
-                            for img in imgs_without_anns:
-                                file.write(f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
-                    except:
-                        print(f"Log file not found or can't be opened: {self.log_filepath}")
-
+                if not self.auto_fix:
+                    messages.append({'type': 'warning',
+                                     'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'})
+                    if self.log_filepath is not None:
+                        try:
+                            with open(self.log_filepath, 'a') as file:
+                                for img in imgs_without_anns:
+                                    file.write(f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
+                        except:
+                            print(f"Log file not found or can't be opened: {self.log_filepath}")
+                else:
+                    for img_filename in imgs_without_anns:
+                        img_path = osp.join(image_dir, img_filename)
+                        if osp.exists(img_path):
+                            os.remove(img_path)
+                    coco["images"] = [image for image in coco["images"] if image["file_name"] not in imgs_without_anns]
+                    _reload_coco(coco_file_path, coco)
+                    imgs_without_anns = [
+                        img["file_name"] for img in coco["images"] if not any(ann["image_id"] == img["id"]
+                                                                              for ann in coco["annotations"])]
+                    if len(imgs_without_anns) > 0:
+                        raise Exception("Auto-fix: failure. Failed to remove imgs without anns from the coco file.")
+                    log.debug(f"Auto-fix: removed all images without annotations.")
+                    # since images were deleted, the validation needs to run again for dataset_size and size_in_bytes
+                    return self.validate_dataset()
             category_ids = [cat["id"] for cat in coco["categories"]]
             image_ids = [img["id"] for img in coco["images"]]
             ann_ids = [ann["id"] for ann in coco["annotations"]]
@@ -541,7 +555,11 @@ def _get_first_image_from_dir(image_dir: str) -> Optional[str]:
 
 def _reload_dataset_infos(dataset_infos_path: str, dataset_info_dict: dict) -> None:
     with open(dataset_infos_path, 'w') as file:
-        json.dump(dataset_info_dict, file)
+        json.dump(dataset_info_dict, file, indent=4)
+
+def _reload_coco(coco_file_path: str, coco_dict: dict) -> None:
+    with open(coco_file_path, 'w') as file:
+        json.dump(coco_dict, file, indent=4)
 
 def validate_cli():
     parser = argparse.ArgumentParser()
