@@ -194,7 +194,7 @@ class DatasetValidator:
                     else:
                         dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
-                        log.debug(f"Auto-fix: changed dataset_size from {dataset_info['dataset_size']} to {real_img_count}.")
+                        log.debug(f"Auto-fix: changed dataset_size to {real_img_count}.")
             else:
                 if not self.auto_fix:
                     messages.append({'type': 'warning',
@@ -220,7 +220,7 @@ class DatasetValidator:
                     else:
                         dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
-                        log.debug(f"Auto-fix: changed size_in_bytes from {dataset_info['size_in_bytes']} to {real_size_in_bytes}.")
+                        log.debug(f"Auto-fix: changed size_in_bytes to {real_size_in_bytes}.")
             else:
                 if not self.auto_fix:
                     messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.'})
@@ -468,8 +468,8 @@ class DatasetValidator:
     def validate_split_sizes(self, dataset_infos_path: str, split_names: str, annotations_dir: str, images_dir: str):
         split_messages = []
         with open(dataset_infos_path, "r") as f:
-            dataset_info: dict = json.load(f)
-            dataset_info = dataset_info[list(dataset_info.keys())[0]]
+            dataset_infos_json: dict = json.load(f)
+            dataset_info = dataset_infos_json[list(dataset_infos_json.keys())[0]]
 
         for split_name in split_names:
             try:
@@ -478,18 +478,33 @@ class DatasetValidator:
                 with open(split_file_path) as file:
                     coco_dict = json.load(file)
 
+                real_num_examples = _calculate_split_num_imgs(coco_dict, images_dir)
                 if "num_examples" in split_dict:
-                    real_num_examples = _calculate_split_num_imgs(coco_dict, images_dir)
                     if type(split_dict["num_examples"]) == int:
                         if real_num_examples != split_dict["num_examples"]:
-                            split_messages.append({'type': 'warning',
-                                             'message': f'"dataset_infos.json" shows {split_dict["num_examples"]} as number or images in split "{split_name}", but {real_num_examples} images were found in the dataset root directory.'})
+                            if not self.auto_fix:
+                                split_messages.append({'type': 'warning',
+                                                'message': f'"dataset_infos.json" shows {split_dict["num_examples"]} as number or images in split "{split_name}", but {real_num_examples} images were found in the dataset root directory.'})
+                            else:
+                                split_dict["num_examples"] = real_num_examples
+                                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                                log.debug(f"Auto-fix: changed num_examples for split {split_name} to {real_num_examples}")
                     else:
-                        split_messages.append({'type': 'warning',
-                                         'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_examples" for split "{split_name}", {real_num_examples} images were found in the dataset root directory.'})
+                        if not self.auto_fix:
+                            split_messages.append({'type': 'warning',
+                                            'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_examples" for split "{split_name}", {real_num_examples} images were found in the dataset root directory.'})
+                        else:
+                            split_dict["num_examples"] = real_num_examples
+                            _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                            log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
                 else:
-                    split_messages.append({'type': 'warning',
-                                     'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for split "{split_name}".'})
+                    if not self.auto_fix:
+                        split_messages.append({'type': 'warning',
+                                        'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for split "{split_name}".'})
+                    else:
+                        split_dict["num_examples"] = real_num_examples
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
 
                 if "num_bytes" in split_dict:
                     real_bytes = _calculate_split_size(coco_dict, images_dir)
