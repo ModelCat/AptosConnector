@@ -506,21 +506,35 @@ class DatasetValidator:
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
                         log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
 
+                real_bytes = _calculate_split_size(coco_dict, images_dir)
                 if "num_bytes" in split_dict:
-                    real_bytes = _calculate_split_size(coco_dict, images_dir)
                     if type(split_dict["num_bytes"]) == int:
                         if real_bytes != split_dict["num_bytes"]:
-                            split_messages.append({'type': 'warning',
-                                             'message': f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of split "{split_name}", but real split size was calculated as {real_bytes} B.'})
+                            if not self.auto_fix:
+                                split_messages.append({'type': 'warning',
+                                                'message': f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of split "{split_name}", but real split size was calculated as {real_bytes} B.'})
+                            else:
+                                split_dict["num_bytes"] = real_bytes
+                                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                                log.debug(f"Auto-fix: changed num_bytes for split {split_name} to {real_bytes}")
                     else:
-                        split_messages.append({'type': 'warning',
-                                         'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" for split "{split_name}", real split size was calculated as {real_bytes} B.'})
-
+                        if not self.auto_fix:
+                            split_messages.append({'type': 'warning',
+                                            'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" for split "{split_name}", real split size was calculated as {real_bytes} B.'})
+                        else:
+                            split_dict["num_bytes"] = real_bytes
+                            _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                            log.debug(f"Auto-fix: added num_bytes for split {split_name}: {real_bytes}")
                 else:
-                    split_messages.append({'type': 'warning',
-                                     'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_bytes" for split "{split_name}".'})
+                    if not self.auto_fix:
+                        split_messages.append({'type': 'warning',
+                                        'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_bytes" for split "{split_name}".'})
+                    else:
+                        split_dict["num_bytes"] = real_bytes
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: added num_bytes for split {split_name}: {real_bytes}")
             except:
-                split_messages.append({'type': 'warning',
+                split_messages.append({'type': 'error',
                                      'message': f'Couldn\'t verify size and number of images for split "{split_name}".'})
 
         return split_messages
