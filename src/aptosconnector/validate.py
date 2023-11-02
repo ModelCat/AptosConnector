@@ -210,17 +210,36 @@ class DatasetValidator:
             else:
                 dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                 _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
-                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json")
+                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json.")
 
+        real_size_in_bytes = _calculate_dir_size(self.root_dir)
         if "size_in_bytes" in dataset_info:
-            real_size_in_bytes = _calculate_dir_size(self.root_dir)
             if type(dataset_info["size_in_bytes"]) == int:
                 if real_size_in_bytes != dataset_info["size_in_bytes"]:
-                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                    if not self.auto_fix:
+                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                    else:
+                        dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: changed size_in_bytes from {dataset_info['size_in_bytes']} to {real_size_in_bytes}.")
             else:
-                messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                if not self.auto_fix:
+                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                else:
+                    dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                    _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                    log.debug(
+                        f"Auto-fix: added size_in_bytes {dataset_info['size_in_bytes']} to dataset_infos.json."
+                    )
         else:
-            messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain an entry for "size_in_bytes".'})
+            if not self.auto_fix:
+                messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain an entry for "size_in_bytes".'})
+            else:
+                dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                log.debug(
+                    f"Auto-fix: added size_in_bytes {dataset_info['size_in_bytes']} to dataset_infos.json."
+                )
 
         return messages, ann_file_names, split_names, label_names
 
