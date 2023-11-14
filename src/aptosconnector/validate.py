@@ -198,7 +198,7 @@ class DatasetValidator:
 
         real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, 'images'))
         if "dataset_size" in dataset_info:
-            if type(dataset_info["dataset_size"]) == int:
+            if type(dataset_info["dataset_size"]) is int:
                 if real_img_count != dataset_info["dataset_size"]:
                     if not self.auto_fix:
                         messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'})
