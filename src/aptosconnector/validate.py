@@ -17,7 +17,13 @@ import pkg_resources
 
 class DatasetValidator:
 
-    def __init__(self, dataset_root_dir: str, working_dir: str = None, auto_fix: bool = False):
+    def __init__(
+            self,
+            dataset_root_dir: str,
+            working_dir: str = None,
+            auto_fix: bool = False,
+            auto_fix_prompt: bool = True
+    ):
 
         if not osp.exists(dataset_root_dir):
             print(f'Path does not exists: {dataset_root_dir}')
@@ -27,6 +33,7 @@ class DatasetValidator:
         self.working_dir = working_dir
         self.auto_fix = auto_fix
         self.log_filename = 'dataset_validator_log.txt'
+        self.auto_fix_prompt = auto_fix_prompt
 
         self.messages = None
 
@@ -142,7 +149,11 @@ class DatasetValidator:
 
         for key in ["description", "builder_name", "config_name"]:
             if key not in dataset_info:
-                messages.append({'type': 'warning', 'message': f'"dataset_infos.json" is missing the "{key}" key.'})
+                if not self.auto_fix:
+                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" is missing the "{key}" key.'})
+                else:
+                    dataset_info[key] = ""
+                    log.debug(f'Auto-fix: "{key}" key added to "dataset_infos.json" file')
 
         if "splits" in dataset_info:
             for split in ["train", "test", "validation"]:
