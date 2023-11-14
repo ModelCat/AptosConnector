@@ -34,6 +34,7 @@ class DatasetValidator:
         self.auto_fix = auto_fix
         self.log_filename = 'dataset_validator_log.txt'
         self.auto_fix_prompt = auto_fix_prompt
+        self.restart_analysis = False
 
         self.messages = None
 
@@ -79,6 +80,7 @@ class DatasetValidator:
              -
         """
         self.messages = []
+        self.restart_analysis = False
 
         dataset_infos_path = osp.join(self.root_dir, "dataset_infos.json")
 
@@ -121,7 +123,7 @@ class DatasetValidator:
 
         self.messages += split_size_messages
 
-        return self.messages
+        return self.messages, self.restart_analysis
 
     def validate_dataset_infos_file(self, dataset_infos_path: str):
 
@@ -278,7 +280,8 @@ class DatasetValidator:
             else:
                 messages += self.validate_coco_file(osp.join(annotations_dir, ann_file), images_dir, label_names)
 
-        messages += self.check_for_duplicate_images(images_dir)
+        for ann_file in ann_file_names:
+            messages += self.check_for_duplicate_images(images_dir, osp.join(annotations_dir, ann_file))
         for ann_file in ann_file_names:
             messages += self.check_split_image_duplicates(osp.join(annotations_dir, ann_file))
 
@@ -345,7 +348,7 @@ class DatasetValidator:
                         raise Exception("Auto-fix: failure. Failed to remove imgs without anns from the coco file.")
                     log.debug(f"Auto-fix: removed all images without annotations.")
                     # since images were deleted, the validation needs to run again for dataset_size and size_in_bytes
-                    return self.validate_dataset()
+                    self.restart_analysis = True
                 else:
                     messages.append({'type': 'warning',
                                      'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'})
@@ -401,11 +404,14 @@ class DatasetValidator:
 
         return messages
 
-    def check_for_duplicate_images(self, images_dir):
+    def check_for_duplicate_images(self, images_dir: str, coco_path: str):
         hashes = dict()
         duplicate_count = 0
+        with open(coco_path) as file:
+            coco = json.load(file)
 
-        for path in Path(images_dir).rglob('*'):
+        for img in coco["images"]:
+            path = osp.join(images_dir, img["file_name"])
             if osp.isfile(path):
                 with open(path, 'rb') as file:
                     file_hash = hashlib.sha256(file.read()).hexdigest()
@@ -413,22 +419,34 @@ class DatasetValidator:
                         duplicate_count += 1
                     if file_hash not in hashes:
                         hashes[file_hash] = []
-                    hashes[file_hash].append(path)
-
-        if self.log_filepath is not None:
-            try:
-                with open(self.log_filepath, 'a') as file:
-                    for hash_images in hashes.values():
-                        if len(hash_images) > 1:
-                            relpaths = [osp.relpath(path, start=images_dir) for path in hash_images]
-                            file.write(f'Images {relpaths} are duplicate.\n')
-            except:
-                print(f"Log file not found or can't be opened: {self.log_filepath}")
-
+                    hashes[file_hash].append(img["file_name"])
         if duplicate_count > 0:
-            return [{'type': 'warning',
-                     'message': f'There are {duplicate_count} duplicate images (with same content, but different name) in your dataset. Check the '
-                                f'"dataset validator log" file in the Dataset Analysis job to see details about those images.'}]
+            if self.auto_fix and self.handle_permission(f'Auto-fix: Do you want to delete duplicate images from your '
+                                                        f'dataset? (y/n): '):
+                for hash_images in hashes.values():
+                    if len(hash_images) > 1:
+                        for img_filename in hash_images[1:]:
+                            os.remove(osp.join(images_dir, img_filename))
+                            coco["images"] = [img for img in coco["images"] if img["file_name"] != img_filename]
+                _reload_coco(coco_path, coco)
+                # restarting validation due to changes in the dataset
+                self.restart_analysis = True
+                return []
+            else:
+                if self.log_filepath is not None:
+                    try:
+                        with open(self.log_filepath, 'a') as file:
+                            for hash_images in hashes.values():
+                                if len(hash_images) > 1:
+                                    relpaths = [osp.relpath(path, start=images_dir) for path in hash_images]
+                                    file.write(f'Images {relpaths} are duplicate.\n')
+                    except:
+                        print(f"Log file not found or can't be opened: {self.log_filepath}")
+                return [{
+                    'type': 'warning',
+                    'message': f'There are {duplicate_count} duplicate images (with same content, but different name) '
+                               f'in your dataset. Check the "dataset validator log" file in the Dataset Analysis job '
+                               f'to see details about those images.'}]
         else:
             return []
 
@@ -553,6 +571,13 @@ class DatasetValidator:
 
         return split_messages
 
+    def handle_permission(self, message):
+        if self.auto_fix_prompt:
+            return input(message) == 'y'
+        else:
+            return True
+
+
 def _count_imgs_in_dir(directory: str) -> int:
     image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']
 
@@ -612,6 +637,9 @@ def validate_cli():
     #                     default=None)
     parser.add_argument('--auto-fix', '-af', action='store_true', default=False,
                         help='Auto-fix smaller issues about your dataset. Resolves most warnings.')
+    parser.add_argument('--yes', '-y', action='store_true', default=False,
+                        help='Automatically agree to all prompts from the auto-fix tool. NOTE: choosing this option'
+                             ' can modify your dataset images and annotation files.')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help="Verbosity level: -v, -vv")
     # parser.add_argument("-a", "--annotations_required",
@@ -627,10 +655,19 @@ def validate_cli():
 
     dataset_path = args.dataset_path
     auto_fix = args.auto_fix
+    auto_fix_prompt = not args.yes
 
-    dataset_validator = DatasetValidator(dataset_root_dir=dataset_path, working_dir=dataset_path, auto_fix=auto_fix)
+    dataset_validator = DatasetValidator(
+        dataset_root_dir=dataset_path,
+        working_dir=dataset_path,
+        auto_fix=auto_fix,
+        auto_fix_prompt=auto_fix_prompt
+    )
     # messages = dataset_validator.validate_dataset(args.annotations_required)
-    messages = dataset_validator.validate_dataset()
+    while True:
+        messages, restart = dataset_validator.validate_dataset()
+        if not restart:
+            break
 
 
     print('\n'+f" Messages: ".center(100, '-'))

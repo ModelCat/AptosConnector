@@ -19,7 +19,7 @@ class TestSimple(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)
-            msgs = dsv.validate_dataset()
+            msgs, _ = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
@@ -31,7 +31,7 @@ class TestSimple(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)
-            msgs = dsv.validate_dataset()
+            msgs, _ = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
@@ -43,7 +43,7 @@ class TestSimple(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)
-            msgs = dsv.validate_dataset()
+            msgs, _ = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
