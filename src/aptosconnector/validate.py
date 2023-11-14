@@ -487,12 +487,28 @@ class DatasetValidator:
             images = [img["file_name"] for img in coco["images"]]
             duplicates = [(item, count) for item, count in Counter(images).items() if count > 1]
             if len(duplicates) > 0:
-                with open(self.log_filepath, 'a') as file:
-                    for img in duplicates:
-                        file.write(
-                            f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation file.\n')
-                return [{'type': 'warning',
-                         'message': f'{len(duplicates)} images are duplicated in the {coco_file_name} annotation file.'}]
+                if self.auto_fix and self.handle_permission(f'Auto-fix: Do you want to delete duplicate images in split "{coco_file_name}"? (y/n): '):
+                    for img, count in duplicates:
+                        if count > 1:
+                            indices = [i for i, d in enumerate(coco["images"]) if d["file_name"] == img]
+                            img_to_remain = coco["images"][indices[0]]
+                            for i in indices[1:]:
+                                img_to_delete = coco["images"][i]
+                                # routing all annotations to the image that will remain
+                                anns_for_img = [ann for ann in coco["annotations"] if ann["image_id"] == img_to_delete["id"]]
+                                for ann in anns_for_img:
+                                    ann["image_id"] = img_to_remain["id"]
+                                del coco["images"][i]
+                    _reload_coco(ann_path, coco)
+                    self.restart_analysis = True
+                    return []
+                else:
+                    with open(self.log_filepath, 'a') as file:
+                        for img in duplicates:
+                            file.write(
+                                f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation file.\n')
+                    return [{'type': 'warning',
+                            'message': f'{len(duplicates)} images are duplicated in the {coco_file_name} annotation file.'}]
             return []
         except:
             return []
