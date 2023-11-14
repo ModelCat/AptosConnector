@@ -419,15 +419,24 @@ class DatasetValidator:
                         duplicate_count += 1
                     if file_hash not in hashes:
                         hashes[file_hash] = []
-                    hashes[file_hash].append(img["file_name"])
+                    hashes[file_hash].append(img["id"])
         if duplicate_count > 0:
             if self.auto_fix and self.handle_permission(f'Auto-fix: Do you want to delete duplicate images from your '
                                                         f'dataset? (y/n): '):
                 for hash_images in hashes.values():
                     if len(hash_images) > 1:
-                        for img_filename in hash_images[1:]:
-                            os.remove(osp.join(images_dir, img_filename))
-                            coco["images"] = [img for img in coco["images"] if img["file_name"] != img_filename]
+                        img_to_keep = [img for img in coco["images"] if img["id"] == hash_images[0]][0]
+                        for img_id in hash_images[1:]:
+                            try:
+                                img_to_delete = [img for img in coco["images"] if img["id"] == img_id and img["file_name"] != img_to_keep["file_name"]][0]
+                            except IndexError:
+                                continue
+                            os.remove(osp.join(images_dir, img_to_delete["file_name"]))
+                            # routing all annotations to the kept image
+                            for ann in coco["annotations"]:
+                                if ann["image_id"] == img_id:
+                                    ann["image_id"] = img_to_keep["id"]
+                            coco["images"] = [img for img in coco["images"] if img["id"] != img_id]
                 _reload_coco(coco_path, coco)
                 # restarting validation due to changes in the dataset
                 self.restart_analysis = True
