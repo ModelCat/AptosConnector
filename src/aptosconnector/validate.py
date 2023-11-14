@@ -330,35 +330,34 @@ class DatasetValidator:
                         print(f"Log file not found or can't be opened: {self.log_filepath}")
 
             if len(imgs_without_anns) > 0:
-                if not self.auto_fix:
+                if self.auto_fix and self.handle_permission(f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '):
+                    for img_filename in imgs_without_anns:
+                        img_path = osp.join(image_dir, img_filename)
+                        if osp.exists(img_path):
+                            os.remove(img_path)
+                    coco["images"] = [image for image in coco["images"] if
+                                      image["file_name"] not in imgs_without_anns]
+                    _reload_coco(coco_file_path, coco)
+                    imgs_without_anns = [
+                        img["file_name"] for img in coco["images"] if not any(ann["image_id"] == img["id"]
+                                                                              for ann in coco["annotations"])]
+                    if len(imgs_without_anns) > 0:
+                        raise Exception("Auto-fix: failure. Failed to remove imgs without anns from the coco file.")
+                    log.debug(f"Auto-fix: removed all images without annotations.")
+                    # since images were deleted, the validation needs to run again for dataset_size and size_in_bytes
+                    return self.validate_dataset()
+                else:
                     messages.append({'type': 'warning',
                                      'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'})
                     if self.log_filepath is not None:
                         try:
                             with open(self.log_filepath, 'a') as file:
                                 for img in imgs_without_anns:
-                                    file.write(f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
+                                    file.write(
+                                        f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
                         except:
                             print(f"Log file not found or can't be opened: {self.log_filepath}")
-                else:
-                    permission = self.handle_permission(f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): ')
-                    if permission:
-                        for img_filename in imgs_without_anns:
-                            img_path = osp.join(image_dir, img_filename)
-                            if osp.exists(img_path):
-                                os.remove(img_path)
-                        coco["images"] = [image for image in coco["images"] if image["file_name"] not in imgs_without_anns]
-                        _reload_coco(coco_file_path, coco)
-                        imgs_without_anns = [
-                            img["file_name"] for img in coco["images"] if not any(ann["image_id"] == img["id"]
-                                                                                  for ann in coco["annotations"])]
-                        if len(imgs_without_anns) > 0:
-                            raise Exception("Auto-fix: failure. Failed to remove imgs without anns from the coco file.")
-                        log.debug(f"Auto-fix: removed all images without annotations.")
-                        # since images were deleted, the validation needs to run again for dataset_size and size_in_bytes
-                        return self.validate_dataset()
-                    else:
-                        log.info('Permission denied.')
+                    
             category_ids = [cat["id"] for cat in coco["categories"]]
             image_ids = [img["id"] for img in coco["images"]]
             ann_ids = [ann["id"] for ann in coco["annotations"]]
