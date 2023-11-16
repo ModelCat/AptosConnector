@@ -4,14 +4,14 @@
         "version": "1.0",
         "description": "Converted from sample `dogs-vs-cats`",
         "contributor": "Eta Compute",
-        "url": "https://aptos.ml",
+        "url": "https://aptos.training",
         "date_created": "2022-12-16"
     },
     "licenses": [
         {
-            "url": "https://aptos.ml",
+            "url": "https://www.microsoft.com/en-us/download/details.aspx?id=54765",
             "id": 1,
-            "name": "Dummy License"
+            "name": "Community Data License Agreement - Permissive - Version 2.0"
         }
     ],
     "categories": [
