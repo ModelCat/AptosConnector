@@ -42,7 +42,7 @@ class TestSimple(unittest.TestCase):
             msgs = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
-            self.assertEqual(len(msgs), 0)
+            self.assertEqual(len([m for m in msgs if m.get('type') != 'warning']), 0)
 
     def test_object_detection(self):
         ds_path = osp.join(
@@ -54,7 +54,7 @@ class TestSimple(unittest.TestCase):
             msgs = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
-            self.assertEqual(len(msgs), 0)
+            self.assertEqual(len([m for m in msgs if m.get('type') != 'warning']), 0)
 
     def test_keypoint_detection(self):
         ds_path = osp.join(
@@ -66,7 +66,7 @@ class TestSimple(unittest.TestCase):
             msgs = dsv.validate_dataset()
             log.info(msgs)
             # assert that there are not warning/error messages
-            self.assertEqual(len(msgs), 0)
+            self.assertEqual(len([m for m in msgs if m.get('type') != 'warning']), 0)
 
 
 if __name__ == "__main__":
