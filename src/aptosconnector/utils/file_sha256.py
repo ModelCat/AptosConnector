@@ -1,5 +1,6 @@
 import hashlib
 
+
 def file_sha256(path):
     hash_sha256 = hashlib.sha256()
     with open(path, "rb") as f:
