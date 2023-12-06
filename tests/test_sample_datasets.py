@@ -71,8 +71,9 @@ class TestSimple(unittest.TestCase):
 
     # testing copying dataset to another directory, changing dataset infos entry and checking the autofix
     def test_autofix_simple(self):
-        pkg_path = osp.dirname(aptosconnector.__file__)
-        ds_path = osp.join(pkg_path, '..', '..', 'sample_datasets', 'aptos_classification_sample')
+        ds_path = osp.join(
+            _get_dataset_path(), "aptos_keypoints_sample"
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copytree(ds_path, tmp, dirs_exist_ok=True)
@@ -102,8 +103,9 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(len(msgs), 0)
 
     def test_autofix(self):
-        pkg_path = osp.dirname(aptosconnector.__file__)
-        ds_path = osp.join(pkg_path, '..', '..', 'sample_datasets', 'aptos_classification_sample')
+        ds_path = osp.join(
+            _get_dataset_path(), "aptos_keypoints_sample"
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copytree(ds_path, tmp, dirs_exist_ok=True)
