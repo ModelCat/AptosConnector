@@ -3,20 +3,40 @@
 # setup.py that excludes installing the "tests" package
 import shutil
 import unittest
-
 import aptosconnector
 from aptosconnector.validate import DatasetValidator
 import os.path as osp
 import tempfile
 import logging as log
 import json
+import os
+
+
+def _get_dataset_path() -> str:
+    datasets_folder = 'sample_datasets'
+
+    # first try where package is installed
+    # this will work for local call of unittests
+    ds_path = osp.abspath(osp.join(osp.dirname(aptosconnector.__file__), "..", "..", datasets_folder))
+    if osp.exists(ds_path):
+        print(ds_path)
+        return ds_path
+
+    # otherwise check current directory (this will work for tox)
+
+    ds_path = osp.abspath(osp.join(os.getcwd(), datasets_folder))
+    if osp.exists(ds_path):
+        print(ds_path)
+        return ds_path
+
+    raise FileExistsError(f'`{datasets_folder}` cannot be located')
+
 
 class TestSimple(unittest.TestCase):
-
     def test_classification(self):
-
-        pkg_path = osp.dirname(aptosconnector.__file__)
-        ds_path = osp.join(pkg_path, '..', '..', 'sample_datasets', 'aptos_classification_sample')
+        ds_path = osp.join(
+            _get_dataset_path(), "aptos_classification_sample"
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)
@@ -24,11 +44,11 @@ class TestSimple(unittest.TestCase):
             log.info(msgs)
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
-            
-    def test_object_detection(self):
 
-        pkg_path = osp.dirname(aptosconnector.__file__)
-        ds_path = osp.join(pkg_path, '..', '..', 'sample_datasets', 'aptos_objectdetection_sample')
+    def test_object_detection(self):
+        ds_path = osp.join(
+            _get_dataset_path(), "aptos_objectdetection_sample"
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)
@@ -38,9 +58,9 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(len(msgs), 0)
 
     def test_keypoint_detection(self):
-
-        pkg_path = osp.dirname(aptosconnector.__file__)
-        ds_path = osp.join(pkg_path, '..', '..', 'sample_datasets', 'aptos_keypoints_sample')
+        ds_path = osp.join(
+            _get_dataset_path(), "aptos_keypoints_sample"
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             dsv = DatasetValidator(ds_path, tmp)

@@ -115,6 +115,22 @@ Uploading file: tfds/tf_test-validation.tfrecord-00000-of-00001
 ----------------------------------------------------------------------------------------------------
 Upload complete. You can view your dataset at: https://aptos.training/datasets/XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX/tf_test
 ```
+
+## Running tests
+
+```
+# install tox test runner:
+python -m pip install --user tox
+python -m tox --help
+
+# install developer dependencies of the package
+cd [...]/AptosConnector
+pip install -e .[dev]
+
+# run tests
+tox
+```
+
 ## Developed by:
 
 <img src="https://etacompute.com/wp-content/uploads/2021/09/eta-logo.svg" width="200">

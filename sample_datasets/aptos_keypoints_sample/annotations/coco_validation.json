@@ -2,16 +2,16 @@
     "info": {
         "year": "2023",
         "version": "1.0.0",
-        "description": "Single Image Single Person Dataset with Keypoints - Source: COCO 2014 Val Dataset",
+        "description": "A subset of Single Image Single Person Dataset with Keypoints - Source: COCO 2014 Val Dataset",
         "contributor": "Eta Compute",
-        "url": "https://aptos.ml",
+        "url": "https://cocodataset.org/#home",
         "date_created": "2023-07-14"
     },
     "licenses": [
         {
-            "url": "https://aptos.ml",
+            "url": "https://cocodataset.org/#termsofuse",
             "id": 1,
-            "name": "Dummy License"
+            "name": "Creative Commons Attribution 4.0 License"
         }
     ],
     "categories": [
