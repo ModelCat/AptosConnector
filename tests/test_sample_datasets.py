@@ -42,6 +42,11 @@ class TestSimple(unittest.TestCase):
             dsv = DatasetValidator(ds_path, tmp)
             msgs, _ = dsv.validate_dataset()
             log.info(msgs)
+            # dataset copying causes change in dataset size of a few bytes
+            if len(msgs) == 1 and "size was calculated using the dataset root directory" in msgs[0]['message']:
+                print("DEBUG")
+                msgs = []
+            print(msgs)
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
 
@@ -54,6 +59,9 @@ class TestSimple(unittest.TestCase):
             dsv = DatasetValidator(ds_path, tmp)
             msgs, _ = dsv.validate_dataset()
             log.info(msgs)
+            # dataset copying causes change in dataset size of a few bytes
+            if len(msgs) == 1 and "size was calculated using the dataset root directory" in msgs[0]['message']:
+                msgs = []
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
 
@@ -66,6 +74,9 @@ class TestSimple(unittest.TestCase):
             dsv = DatasetValidator(ds_path, tmp)
             msgs, _ = dsv.validate_dataset()
             log.info(msgs)
+            # dataset copying causes change in dataset size of a few bytes
+            if len(msgs) == 1 and "size was calculated using the dataset root directory" in msgs[0]['message']:
+                msgs = []
             # assert that there are not warning/error messages
             self.assertEqual(len(msgs), 0)
 
@@ -116,6 +127,8 @@ class TestSimple(unittest.TestCase):
                 if not restart:
                     break
             # assert that there are not warning/error messages (except potential dataset size on Mac)
+            if len(msgs) == 1 and "size was calculated using the dataset root directory" in msgs[0]['message']:
+                msgs = []
             self.assertLessEqual(len(msgs), 1)
 
             annotations_dir = osp.join(osp.join(tmp, "annotations"))
