@@ -1,25 +1,37 @@
 import hashlib
 import json
 import argparse
+import logging as log
 import os.path as osp
 import os
-from typing import List
-from pathlib import Path
+from typing import List, Optional
 from itertools import combinations
 from collections import Counter
+import shutil
 from .utils import hash_dataset
 import pkg_resources
 
 
 class DatasetValidator:
-    def __init__(self, dataset_root_dir: str, working_dir: str = None):
+
+    def __init__(
+            self,
+            dataset_root_dir: str,
+            working_dir: str = None,
+            auto_fix: bool = False,
+            auto_fix_prompt: bool = True
+    ):
+
         if not osp.exists(dataset_root_dir):
             print(f"Path does not exists: {dataset_root_dir}")
             exit(1)
 
         self.root_dir = dataset_root_dir
         self.working_dir = working_dir
+        self.auto_fix = auto_fix
         self.log_filename = "dataset_validator_log.txt"
+        self.auto_fix_prompt = auto_fix_prompt
+        self.restart_analysis = False
 
         self.messages = None
 
@@ -65,8 +77,8 @@ class DatasetValidator:
              -
         """
         self.messages = []
+        self.restart_analysis = False
 
-        dataset_name = osp.basename(self.root_dir)
         dataset_infos_path = osp.join(self.root_dir, "dataset_infos.json")
 
         if not osp.exists(dataset_infos_path):
@@ -84,23 +96,27 @@ class DatasetValidator:
         images_dir = osp.join(self.root_dir, "images")
         annotations_dir = osp.join(self.root_dir, "annotations")
 
-        if not osp.exists(osp.join(self.root_dir, "thumbnail.jpg")):
-            self.messages.append(
-                {
-                    "type": "warning",
-                    "message": 'The dataset is missing the "thumbnail.jpg" file. '
-                    "Pick one image from the dataset, name it as "
-                    '"thumbnail.jpg" and place it inside the '
-                    "dataset root directory.",
-                }
-            )
+        thumbnail_path = osp.join(self.root_dir, "thumbnail.jpg")
+        if not osp.exists(thumbnail_path):
+            if not self.auto_fix:
+                self.messages.append({'type': 'warning', 'message': 'The dataset is missing the "thumbnail.jpg" file. '
+                                                                    'Pick one image from the dataset, name it as '
+                                                                    '"thumbnail.jpg" and place it inside the '
+                                                                    'dataset root directory.'})
+            else:
+                first_image = _get_first_image_from_dir(images_dir)
+                if first_image is not None:
+                    shutil.copy(first_image, thumbnail_path)
+                    log.debug(f"Auto-fix: thumbnail generated automatically from image '{first_image}'")
+                else:
+                    self.messages.append({
+                        'type': 'error',
+                        'message': 'Couldn\'t find any image to serve as a thumbnail for the dataset.'
+                    })
 
-        (
-            dataset_info_messages,
-            ann_file_names,
-            split_names,
-            label_names,
-        ) = self.validate_dataset_infos_file(dataset_name, dataset_infos_path)
+        dataset_info_messages, ann_file_names, split_names, label_names = self.validate_dataset_infos_file(
+            dataset_infos_path
+        )
         self.messages += dataset_info_messages
 
         annotations_messages = self.validate_annotations_and_images(
@@ -120,9 +136,10 @@ class DatasetValidator:
 
         self.messages += split_size_messages
 
-        return self.messages
+        return self.messages, self.restart_analysis
 
-    def validate_dataset_infos_file(self, dataset_name: str, dataset_infos_path: str):
+    def validate_dataset_infos_file(self, dataset_infos_path: str):
+
         messages = []
         ann_file_names = []
         split_names = []
@@ -157,7 +174,8 @@ class DatasetValidator:
                 [],
             )
 
-        dataset_info = list(dataset_infos_json.values())[0]
+        dataset_name = list(dataset_infos_json.keys())[0]
+        dataset_info = dataset_infos_json[dataset_name]
 
         for key in ["splits", "task_templates"]:
             if key not in dataset_info:
@@ -170,12 +188,16 @@ class DatasetValidator:
 
         for key in ["description", "builder_name", "config_name"]:
             if key not in dataset_info:
-                messages.append(
-                    {
-                        "type": "warning",
-                        "message": f'"dataset_infos.json" is missing the "{key}" key.',
-                    }
-                )
+                if not self.auto_fix:
+                    messages.append(
+                        {
+                            "type": "warning",
+                            "message": f'"dataset_infos.json" is missing the "{key}" key.',
+                        }
+                    )
+                else:
+                    dataset_info[key] = ""
+                    log.debug(f"Auto-fix: '{key}' key added to 'dataset_infos.json' file")
 
         if "splits" in dataset_info:
             for split in ["train", "test", "validation"]:
@@ -246,55 +268,69 @@ class DatasetValidator:
         except Exception:
             pass
 
+        real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, 'images'))
         if "dataset_size" in dataset_info:
-            real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, "images"))
-            if isinstance(dataset_info["dataset_size"], int):
+            if type(dataset_info["dataset_size"]) is int:
                 if real_img_count != dataset_info["dataset_size"]:
-                    messages.append(
-                        {
-                            "type": "warning",
-                            "message": f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.',
-                        }
-                    )
+                    if not self.auto_fix:
+                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'})
+                    else:
+                        dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: changed dataset_size to {real_img_count}.")
             else:
+                if not self.auto_fix:
+                    messages.append({'type': 'warning',
+                                     'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "dataset_size", {real_img_count} were found in the "images" directory.'})
+                else:
+                    dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                    _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                    log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json")
+        else:
+            if not self.auto_fix:
                 messages.append(
                     {
-                        "type": "warning",
-                        "message": f'"dataset_infos.json" doesn\'t contain a valid entry for "dataset_size", {real_img_count} were found in the "images" directory.',
+                        'type': 'warning',
+                        'message': '"dataset_infos.json" doesn\'t contain an entry for "dataset_size".'
                     }
                 )
-        else:
-            messages.append(
-                {
-                    "type": "warning",
-                    "message": '"dataset_infos.json" doesn\'t contain an entry for "dataset_size".',
-                }
-            )
-
+            else:
+                dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
+                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json.")
+        real_size_in_bytes = _calculate_dir_size(self.root_dir)
         if "size_in_bytes" in dataset_info:
-            real_size_in_bytes = _calculate_dir_size(self.root_dir)
-            if isinstance(dataset_info["size_in_bytes"], int):
+            if type(dataset_info["size_in_bytes"]) is int:
                 if real_size_in_bytes != dataset_info["size_in_bytes"]:
-                    messages.append(
-                        {
-                            "type": "warning",
-                            "message": f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.',
-                        }
-                    )
+                    if not self.auto_fix:
+                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                    else:
+                        dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: changed size_in_bytes to {real_size_in_bytes}.")
             else:
+                if not self.auto_fix:
+                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                else:
+                    dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                    _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                    log.debug(
+                        f"Auto-fix: added size_in_bytes {dataset_info['size_in_bytes']} to dataset_infos.json."
+                    )
+        else:
+            if not self.auto_fix:
                 messages.append(
                     {
-                        "type": "warning",
-                        "message": f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.',
+                        'type': 'warning',
+                        'message': '"dataset_infos.json" doesn\'t contain an entry for "size_in_bytes".'
                     }
                 )
-        else:
-            messages.append(
-                {
-                    "type": "warning",
-                    "message": '"dataset_infos.json" doesn\'t contain an entry for "size_in_bytes".',
-                }
-            )
+            else:
+                dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
+                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                log.debug(
+                    f"Auto-fix: added size_in_bytes {dataset_info['size_in_bytes']} to dataset_infos.json."
+                )
 
         return messages, ann_file_names, split_names, label_names
 
@@ -338,7 +374,8 @@ class DatasetValidator:
                     osp.join(annotations_dir, ann_file), images_dir, label_names
                 )
 
-        messages += self.check_for_duplicate_images(images_dir)
+        for ann_file in ann_file_names:
+            messages += self.check_for_duplicate_images(images_dir, osp.join(annotations_dir, ann_file))
         for ann_file in ann_file_names:
             messages += self.check_split_image_duplicates(
                 osp.join(annotations_dir, ann_file)
@@ -415,23 +452,37 @@ class DatasetValidator:
                         )
 
             if len(imgs_without_anns) > 0:
-                messages.append(
-                    {
-                        "type": "warning",
-                        "message": f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.',
-                    }
-                )
-                if self.log_filepath is not None:
-                    try:
-                        with open(self.log_filepath, "a") as file:
-                            for img in imgs_without_anns:
-                                file.write(
-                                    f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n'
-                                )
-                    except Exception:
-                        print(
-                            f"Log file not found or can't be opened: {self.log_filepath}"
-                        )
+                if self.auto_fix and self.handle_permission(f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '):
+                    for img_filename in imgs_without_anns:
+                        img_path = osp.join(image_dir, img_filename)
+                        if osp.exists(img_path):
+                            os.remove(img_path)
+                    coco["images"] = [image for image in coco["images"] if
+                                      image["file_name"] not in imgs_without_anns]
+                    _reload_coco(coco_file_path, coco)
+                    imgs_without_anns = [
+                        img["file_name"] for img in coco["images"] if not any(ann["image_id"] == img["id"]
+                                                                              for ann in coco["annotations"])]
+                    if len(imgs_without_anns) > 0:
+                        raise Exception("Auto-fix: failure. Failed to remove imgs without anns from the coco file.")
+                    log.debug("Auto-fix: removed all images without annotations.")
+                    # since images were deleted, the validation needs to run again for dataset_size and size_in_bytes
+                    self.restart_analysis = True
+                else:
+                    messages.append(
+                        {
+                            'type': 'warning',
+                            'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'
+                        }
+                    )
+                    if self.log_filepath is not None:
+                        try:
+                            with open(self.log_filepath, 'a') as file:
+                                for img in imgs_without_anns:
+                                    file.write(
+                                        f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
+                        except Exception:
+                            print(f"Log file not found or can't be opened: {self.log_filepath}")
 
             category_ids = [cat["id"] for cat in coco["categories"]]
             image_ids = [img["id"] for img in coco["images"]]
@@ -500,11 +551,14 @@ class DatasetValidator:
 
         return messages
 
-    def check_for_duplicate_images(self, images_dir):
+    def check_for_duplicate_images(self, images_dir: str, coco_path: str):
         hashes = dict()
         duplicate_count = 0
+        with open(coco_path) as file:
+            coco = json.load(file)
 
-        for path in Path(images_dir).rglob("*"):
+        for img in coco["images"]:
+            path = osp.join(images_dir, img["file_name"])
             if osp.isfile(path):
                 with open(path, "rb") as file:
                     file_hash = hashlib.sha256(file.read()).hexdigest()
@@ -512,29 +566,43 @@ class DatasetValidator:
                         duplicate_count += 1
                     if file_hash not in hashes:
                         hashes[file_hash] = []
-                    hashes[file_hash].append(path)
-
-        if self.log_filepath is not None:
-            try:
-                with open(self.log_filepath, "a") as file:
-                    for hash_images in hashes.values():
-                        if len(hash_images) > 1:
-                            relpaths = [
-                                osp.relpath(path, start=images_dir)
-                                for path in hash_images
-                            ]
-                            file.write(f"Images {relpaths} are duplicate.\n")
-            except Exception:
-                print(f"Log file not found or can't be opened: {self.log_filepath}")
-
+                    hashes[file_hash].append(img["id"])
         if duplicate_count > 0:
-            return [
-                {
-                    "type": "warning",
-                    "message": f"There are {duplicate_count} duplicate images (with same content, but different name) in your dataset. Check the "
-                    f'"dataset validator log" file in the Dataset Analysis job to see details about those images.',
-                }
-            ]
+            if self.auto_fix and self.handle_permission('Auto-fix: Do you want to delete duplicate images from your '
+                                                        'dataset? (y/n): '):
+                for hash_images in hashes.values():
+                    if len(hash_images) > 1:
+                        img_to_keep = [img for img in coco["images"] if img["id"] == hash_images[0]][0]
+                        for img_id in hash_images[1:]:
+                            try:
+                                img_to_delete = [img for img in coco["images"] if img["id"] == img_id and img["file_name"] != img_to_keep["file_name"]][0]
+                            except IndexError:
+                                continue
+                            os.remove(osp.join(images_dir, img_to_delete["file_name"]))
+                            # routing all annotations to the kept image
+                            for ann in coco["annotations"]:
+                                if ann["image_id"] == img_id:
+                                    ann["image_id"] = img_to_keep["id"]
+                            coco["images"] = [img for img in coco["images"] if img["id"] != img_id]
+                _reload_coco(coco_path, coco)
+                # restarting validation due to changes in the dataset
+                self.restart_analysis = True
+                return []
+            else:
+                if self.log_filepath is not None:
+                    try:
+                        with open(self.log_filepath, 'a') as file:
+                            for hash_images in hashes.values():
+                                if len(hash_images) > 1:
+                                    relpaths = [osp.relpath(path, start=images_dir) for path in hash_images]
+                                    file.write(f'Images {relpaths} are duplicate.\n')
+                    except Exception:
+                        print(f"Log file not found or can't be opened: {self.log_filepath}")
+                return [{
+                    'type': 'warning',
+                    'message': f'There are {duplicate_count} duplicate images (with same content, but different name) '
+                               f'in your dataset. Check the "dataset validator log" file in the Dataset Analysis job '
+                               f'to see details about those images.'}]
         else:
             return []
 
@@ -594,17 +662,28 @@ class DatasetValidator:
                 (item, count) for item, count in Counter(images).items() if count > 1
             ]
             if len(duplicates) > 0:
-                with open(self.log_filepath, "a") as file:
-                    for img in duplicates:
-                        file.write(
-                            f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation file.\n'
-                        )
-                return [
-                    {
-                        "type": "warning",
-                        "message": f"{len(duplicates)} images are duplicated in the {coco_file_name} annotation file.",
-                    }
-                ]
+                if self.auto_fix and self.handle_permission(f'Auto-fix: Do you want to delete duplicate images in split "{coco_file_name}"? (y/n): '):
+                    for img, count in duplicates:
+                        if count > 1:
+                            indices = [i for i, d in enumerate(coco["images"]) if d["file_name"] == img]
+                            img_to_remain = coco["images"][indices[0]]
+                            for i in indices[1:]:
+                                img_to_delete = coco["images"][i]
+                                # routing all annotations to the image that will remain
+                                anns_for_img = [ann for ann in coco["annotations"] if ann["image_id"] == img_to_delete["id"]]
+                                for ann in anns_for_img:
+                                    ann["image_id"] = img_to_remain["id"]
+                                del coco["images"][i]
+                    _reload_coco(ann_path, coco)
+                    self.restart_analysis = True
+                    return []
+                else:
+                    with open(self.log_filepath, 'a') as file:
+                        for img in duplicates:
+                            file.write(
+                                f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation file.\n')
+                    return [{'type': 'warning',
+                            'message': f'{len(duplicates)} images are duplicated in the {coco_file_name} annotation file.'}]
             return []
         except Exception:
             return []
@@ -618,8 +697,8 @@ class DatasetValidator:
     ):
         split_messages = []
         with open(dataset_infos_path, "r") as f:
-            dataset_info: dict = json.load(f)
-            dataset_info = dataset_info[list(dataset_info.keys())[0]]
+            dataset_infos_json: dict = json.load(f)
+            dataset_info = dataset_infos_json[list(dataset_infos_json.keys())[0]]
 
         for split_name in split_names:
             try:
@@ -628,65 +707,100 @@ class DatasetValidator:
                 with open(split_file_path) as file:
                     coco_dict = json.load(file)
 
+                real_num_examples = _calculate_split_num_imgs(coco_dict, images_dir)
                 if "num_examples" in split_dict:
-                    real_num_examples = _calculate_split_num_imgs(coco_dict, images_dir)
-                    if isinstance(split_dict["num_examples"], int):
+                    if type(split_dict["num_examples"]) is int:
                         if real_num_examples != split_dict["num_examples"]:
+                            if not self.auto_fix:
+                                split_messages.append(
+                                    {
+                                        'type': 'warning',
+                                        'message': f'"dataset_infos.json" shows {split_dict["num_examples"]} as number or images in split "{split_name}", but {real_num_examples} images were found in the dataset root directory.'
+                                    }
+                                )
+                            else:
+                                split_dict["num_examples"] = real_num_examples
+                                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                                log.debug(f"Auto-fix: changed num_examples for split {split_name} to {real_num_examples}")
+                    else:
+                        if not self.auto_fix:
                             split_messages.append(
                                 {
-                                    "type": "warning",
-                                    "message": f'"dataset_infos.json" shows {split_dict["num_examples"]} as number or images in split "{split_name}", but {real_num_examples} images were found in the dataset root directory.',
+                                    'type': 'warning',
+                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_examples" for split "{split_name}", {real_num_examples} images were found in the dataset root directory.'
                                 }
                             )
-                    else:
+                        else:
+                            split_dict["num_examples"] = real_num_examples
+                            _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                            log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
+                else:
+                    if not self.auto_fix:
                         split_messages.append(
                             {
-                                "type": "warning",
-                                "message": f'"dataset_infos.json" doesn\'t contain a valid entry for "num_examples" for split "{split_name}", {real_num_examples} images were found in the dataset root directory.',
+                                'type': 'warning',
+                                'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for split "{split_name}".'
                             }
                         )
-                else:
-                    split_messages.append(
-                        {
-                            "type": "warning",
-                            "message": f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for split "{split_name}".',
-                        }
-                    )
+                    else:
+                        split_dict["num_examples"] = real_num_examples
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
 
+                real_bytes = _calculate_split_size(coco_dict, images_dir)
                 if "num_bytes" in split_dict:
-                    real_bytes = _calculate_split_size(coco_dict, images_dir)
-                    if isinstance(split_dict["num_bytes"], int):
+                    if type(split_dict["num_bytes"]) is int:
                         if real_bytes != split_dict["num_bytes"]:
+                            if not self.auto_fix:
+                                split_messages.append(
+                                    {
+                                        'type': 'warning',
+                                        'message': f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of split "{split_name}", but real split size was calculated as {real_bytes} B.'
+                                    }
+                                )
+                            else:
+                                split_dict["num_bytes"] = real_bytes
+                                _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                                log.debug(f"Auto-fix: changed num_bytes for split {split_name} to {real_bytes}")
+                    else:
+                        if not self.auto_fix:
                             split_messages.append(
                                 {
-                                    "type": "warning",
-                                    "message": f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of split "{split_name}", but real split size was calculated as {real_bytes} B.',
+                                    'type': 'warning',
+                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" for split "{split_name}", real split size was calculated as {real_bytes} B.'
                                 }
                             )
-                    else:
+                        else:
+                            split_dict["num_bytes"] = real_bytes
+                            _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                            log.debug(f"Auto-fix: added num_bytes for split {split_name}: {real_bytes}")
+                else:
+                    if not self.auto_fix:
                         split_messages.append(
                             {
-                                "type": "warning",
-                                "message": f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" for split "{split_name}", real split size was calculated as {real_bytes} B.',
+                                'type': 'warning',
+                                'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_bytes" for split "{split_name}".'
                             }
                         )
-
-                else:
-                    split_messages.append(
-                        {
-                            "type": "warning",
-                            "message": f'"dataset_infos.json" doesn\'t contain an entry for "num_bytes" for split "{split_name}".',
-                        }
-                    )
+                    else:
+                        split_dict["num_bytes"] = real_bytes
+                        _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
+                        log.debug(f"Auto-fix: added num_bytes for split {split_name}: {real_bytes}")
             except Exception:
                 split_messages.append(
                     {
-                        "type": "warning",
-                        "message": f'Couldn\'t verify size and number of images for split "{split_name}".',
+                        'type': 'error',
+                        'message': f'Couldn\'t verify size and number of images for split "{split_name}".'
                     }
                 )
 
         return split_messages
+
+    def handle_permission(self, message):
+        if self.auto_fix_prompt:
+            return input(message) == 'y'
+        else:
+            return True
 
 
 def _count_imgs_in_dir(directory: str) -> int:
@@ -729,6 +843,26 @@ def _calculate_split_size(coco_dict: dict, images_dir: str):
     return size_bytes
 
 
+def _get_first_image_from_dir(image_dir: str) -> Optional[str]:
+    for subdir, dirs, files in os.walk(image_dir):
+        for file in files:
+            # Check for image file extensions. You can add or remove as needed.
+            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+                return os.path.join(subdir, file)
+
+    return None
+
+
+def _reload_dataset_infos(dataset_infos_path: str, dataset_info_dict: dict) -> None:
+    with open(dataset_infos_path, 'w') as file:
+        json.dump(dataset_info_dict, file, indent=4)
+
+
+def _reload_coco(coco_file_path: str, coco_dict: dict) -> None:
+    with open(coco_file_path, 'w') as file:
+        json.dump(coco_dict, file, indent=4)
+
+
 def validate_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -740,9 +874,13 @@ def validate_cli():
     )
     # parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
     #                     default=None)
-    parser.add_argument(
-        "--verbose", "-v", action="count", default=0, help="Verbosity level: -v, -vv"
-    )
+    parser.add_argument('--auto-fix', '-af', action='store_true', default=False,
+                        help='Auto-fix smaller issues about your dataset. Resolves most warnings.')
+    parser.add_argument('--yes', '-y', action='store_true', default=False,
+                        help='Automatically agree to all prompts from the auto-fix tool. NOTE: choosing this option'
+                             ' can modify your dataset images and annotation files.')
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help="Verbosity level: -v, -vv")
     # parser.add_argument("-a", "--annotations_required",
     #                     help="Whether the dataset is required to have annotations. Defaults to True.", type=bool,
     #                     required=False, default=True)
@@ -759,12 +897,20 @@ def validate_cli():
         print(f"Validating dataset with args: {args}.")
 
     dataset_path = args.dataset_path
+    auto_fix = args.auto_fix
+    auto_fix_prompt = not args.yes
 
     dataset_validator = DatasetValidator(
-        dataset_root_dir=dataset_path, working_dir=dataset_path
+        dataset_root_dir=dataset_path,
+        working_dir=dataset_path,
+        auto_fix=auto_fix,
+        auto_fix_prompt=auto_fix_prompt
     )
     # messages = dataset_validator.validate_dataset(args.annotations_required)
-    messages = dataset_validator.validate_dataset()
+    while True:
+        messages, restart = dataset_validator.validate_dataset()
+        if not restart:
+            break
 
     print("\n" + " Messages: ".center(100, "-"))
     for msg in messages:
