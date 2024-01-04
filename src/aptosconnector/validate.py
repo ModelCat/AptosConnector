@@ -660,9 +660,7 @@ class DatasetValidator:
                 )
                 if leaked_percentage_of_smaller > train_duplicate_threshold_for_error and "train" in split_names_lower:
                     message_type = 'error'
-                if (leaked_percentage_of_smaller > test_val_duplicate_threshold_for_error
-                        and "test" in split_names_lower
-                        and ("val" in split_names_lower or "validation" in split_names_lower)):
+                if leaked_percentage_of_smaller > test_val_duplicate_threshold_for_error and "test" in split_names_lower and ("val" in split_names_lower or "validation" in split_names_lower):
                     message_type = 'error'
 
                 with open(self.log_filepath, "a") as file:
