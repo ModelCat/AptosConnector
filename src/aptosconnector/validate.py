@@ -4,12 +4,14 @@ import argparse
 import logging as log
 import os.path as osp
 import os
+import math
 from typing import List, Optional
 from itertools import combinations
 from collections import Counter
 import shutil
 from .utils import hash_dataset
 import pkg_resources
+from pycocotools.coco import COCO
 
 
 class DatasetValidator:
@@ -265,7 +267,7 @@ class DatasetValidator:
         except Exception:
             pass
 
-        real_img_count = _count_imgs_in_dir(osp.join(self.root_dir, 'images'))
+        real_img_count = _count_imgs_in_coco_dataset(self.ann_dir, ann_file_names)
         if "dataset_size" in dataset_info:
             if type(dataset_info["dataset_size"]) is int:
                 if real_img_count != dataset_info["dataset_size"]:
@@ -295,10 +297,10 @@ class DatasetValidator:
                 dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                 _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
                 log.debug(f"Auto-fix: added dataset_size ({real_img_count} to dataset_infos.json.")
-        real_size_in_bytes = _calculate_dir_size(self.root_dir)
+        real_size_in_bytes = _calculate_coco_dataset_size(self.image_dir, self.ann_dir, ann_file_names)
         if "size_in_bytes" in dataset_info:
             if type(dataset_info["size_in_bytes"]) is int:
-                if real_size_in_bytes != dataset_info["size_in_bytes"]:
+                if not math.isclose(real_size_in_bytes, dataset_info["size_in_bytes"], rel_tol=0.001):
                     if not self.auto_fix:
                         messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.'})
                     else:
@@ -605,7 +607,8 @@ class DatasetValidator:
         ann_path_2: str,
         split_name_1: str,
         split_name_2: str,
-        duplicate_threshold_for_error: float = 0.03,
+        train_duplicate_threshold_for_error: float = 0.03,
+        test_val_duplicate_threshold_for_error: float = 0.05
     ):
         try:
             with open(ann_path_1, "r") as f:
@@ -613,22 +616,25 @@ class DatasetValidator:
             with open(ann_path_2, "r") as f:
                 coco2 = json.load(f)
 
+            split_names_lower = [split_name_1.lower(), split_name_2.lower()]
             images1 = [img["file_name"] for img in coco1["images"]]
             images2 = [img["file_name"] for img in coco2["images"]]
 
             leaked_images = set(images1).intersection(set(images2))
             if len(leaked_images) > 0:
-                message_type = "warning"
+                message_type = "note"
                 smaller_split = (
                     split_name_1 if len(images1) < len(images2) else split_name_2
                 )
                 leaked_percentage_of_smaller = len(leaked_images) / min(
                     len(images1), len(images2)
                 )
-                if (
-                    leaked_percentage_of_smaller > duplicate_threshold_for_error and "train" in [split_name_1, split_name_2]
-                ):
-                    message_type = "error"
+                if leaked_percentage_of_smaller > train_duplicate_threshold_for_error and "train" in split_names_lower:
+                    message_type = 'error'
+                if (leaked_percentage_of_smaller > test_val_duplicate_threshold_for_error
+                        and "test" in split_names_lower
+                        and ("val" in split_names_lower or "validation" in split_names_lower)):
+                    message_type = 'error'
 
                 with open(self.log_filepath, "a") as file:
                     for img in leaked_images:
@@ -806,6 +812,17 @@ def _count_imgs_in_dir(directory: str) -> int:
     return image_count
 
 
+def _count_imgs_in_coco_dataset(ann_dir: str, ann_file_names: List[str]) -> int:
+    count = 0
+    for ann_name in ann_file_names:
+        ann_path = osp.join(ann_dir, ann_name)
+        if osp.exists(ann_path):
+            coco = COCO(ann_path)
+            img_ids = coco.getImgIds()
+            count += len(img_ids)
+    return count
+
+
 def _calculate_dir_size(directory: str) -> int:
     total_size = 0
     for dirpath, _, filenames in os.walk(directory):
@@ -814,6 +831,20 @@ def _calculate_dir_size(directory: str) -> int:
             total_size += os.path.getsize(filepath)
 
     return total_size
+
+
+def _calculate_coco_dataset_size(img_dir: str, ann_dir: str, ann_file_names: List[str]):
+    size = 0
+    for ann_name in ann_file_names:
+        ann_path = osp.join(ann_dir, ann_name)
+        if osp.exists(ann_path):
+            coco = COCO(ann_path)
+            imgs = coco.loadImgs(coco.getImgIds())
+            for img in imgs:
+                img_path = osp.join(img_dir, img['file_name'])
+                if osp.exists(img_path):
+                    size += osp.getsize(img_path)
+    return size
 
 
 def _calculate_split_num_imgs(coco_dict: dict, images_dir: str):
