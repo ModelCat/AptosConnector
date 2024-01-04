@@ -205,7 +205,7 @@ class DatasetValidator:
                         {
                             "type": "error",
                             "message": f'Split "{split}" is missing in the splits listed in the '
-                            f'"dataset_infos.json" file.',
+                                       f'"dataset_infos.json" file.',
                         }
                     )
                 else:
@@ -214,7 +214,7 @@ class DatasetValidator:
                             {
                                 "type": "error",
                                 "message": f'Split "{split}" is missing the "dataset_name" key in the '
-                                f'"dataset_infos.json" file.',
+                                           f'"dataset_infos.json" file.',
                             }
                         )
 
@@ -245,8 +245,8 @@ class DatasetValidator:
                             {
                                 "type": "error",
                                 "message": f'Found unexpected value of "{task_template["task"]}" '
-                                f'in the "task_templates/task" field inside the "dataset_infos.json" file. '
-                                f'Expected either "classification", "detection" or "keypoints".',
+                                           f'in the "task_templates/task" field inside the "dataset_infos.json" file. '
+                                           f'Expected either "classification", "detection" or "keypoints".',
                             }
                         )
                 if "labels" not in task_template:
@@ -272,7 +272,12 @@ class DatasetValidator:
             if type(dataset_info["dataset_size"]) is int:
                 if real_img_count != dataset_info["dataset_size"]:
                     if not self.auto_fix:
-                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'})
+                        messages.append(
+                            {
+                                'type': 'warning',
+                                'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'
+                            }
+                        )
                     else:
                         dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
@@ -302,14 +307,20 @@ class DatasetValidator:
             if type(dataset_info["size_in_bytes"]) is int:
                 if not math.isclose(real_size_in_bytes, dataset_info["size_in_bytes"], rel_tol=0.001):
                     if not self.auto_fix:
-                        messages.append({'type': 'warning', 'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as dataset size, but {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                        messages.append({'type': 'warning',
+                                         'message': f'"dataset_infos.json" shows {dataset_info["size_in_bytes"]}B as '
+                                                    f'dataset size, but {real_size_in_bytes} B size was calculated '
+                                                    f'using the dataset root directory.'})
                     else:
                         dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
                         log.debug(f"Auto-fix: changed size_in_bytes to {real_size_in_bytes}.")
             else:
                 if not self.auto_fix:
-                    messages.append({'type': 'warning', 'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "size_in_bytes", {real_size_in_bytes} B size was calculated using the dataset root directory.'})
+                    messages.append({'type': 'warning',
+                                     'message': f'"dataset_infos.json" doesn\'t contain a valid entry for '
+                                                f'"size_in_bytes", {real_size_in_bytes} B size was calculated using '
+                                                f'the dataset root directory.'})
                 else:
                     dataset_infos_json[dataset_name]["size_in_bytes"] = real_size_in_bytes
                     _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
@@ -377,7 +388,7 @@ class DatasetValidator:
             )
 
         for (i1, ann_file_1), (i2, ann_file_2) in combinations(
-            enumerate(ann_file_names), 2
+                enumerate(ann_file_names), 2
         ):
             messages += self.check_for_split_leakage(
                 osp.join(self.ann_dir, ann_file_1),
@@ -447,7 +458,9 @@ class DatasetValidator:
                         )
 
             if len(imgs_without_anns) > 0:
-                if self.auto_fix and self.handle_permission(f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '):
+                if self.auto_fix and self.handle_permission(
+                        f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '
+                ):
                     for img_filename in imgs_without_anns:
                         img_path = osp.join(self.image_dir, img_filename)
                         if osp.exists(img_path):
@@ -490,7 +503,7 @@ class DatasetValidator:
                     {
                         "type": "error",
                         "message": f'The annotation file "{coco_file_name}" contains duplicate category IDs. '
-                        f"Verify that all categories[N].id are unique.",
+                                   f"Verify that all categories[N].id are unique.",
                     }
                 )
 
@@ -499,7 +512,7 @@ class DatasetValidator:
                     {
                         "type": "error",
                         "message": f'The annotation file "{coco_file_name}" contains duplicate image IDs. '
-                        f"Verify that all images[N].id are unique.",
+                                   f"Verify that all images[N].id are unique.",
                     }
                 )
 
@@ -508,7 +521,7 @@ class DatasetValidator:
                     {
                         "type": "error",
                         "message": f'The annotation file "{coco_file_name}" contains duplicate annotation IDs. '
-                        f"Verify that all annotations[N].id are unique.",
+                                   f"Verify that all annotations[N].id are unique.",
                     }
                 )
 
@@ -517,10 +530,10 @@ class DatasetValidator:
                     {
                         "type": "error",
                         "message": f'The annotation file "{coco_file_name}" contains annotations with '
-                        f"non-existent image IDs: "
-                        f"{list(set(ann_img_ids).difference(set(image_ids)))}. "
-                        f"Verify all values of annotations[N].image_id are listed under "
-                        f'images[M].id in "{coco_file_name}".',
+                                   f"non-existent image IDs: "
+                                   f"{list(set(ann_img_ids).difference(set(image_ids)))}. "
+                                   f"Verify all values of annotations[N].image_id are listed under "
+                                   f'images[M].id in "{coco_file_name}".',
                     }
                 )
             if not set(ann_cat_ids).issubset(set(category_ids)):
@@ -528,11 +541,11 @@ class DatasetValidator:
                     {
                         "type": "error",
                         "message": f'The annotation file "{coco_file_name}" contains annotations with '
-                        f"non-existent category IDs: "
-                        f"{list(set(ann_cat_ids).difference(set(category_ids)))}, "
-                        f"where the allowed values are {category_ids}. Verify all vallues of "
-                        f"annotations[N].category_id are listed under categories[M].id "
-                        f'in "{coco_file_name}".',
+                                   f"non-existent category IDs: "
+                                   f"{list(set(ann_cat_ids).difference(set(category_ids)))}, "
+                                   f"where the allowed values are {category_ids}. Verify all vallues of "
+                                   f"annotations[N].category_id are listed under categories[M].id "
+                                   f'in "{coco_file_name}".',
                     }
                 )
 
@@ -570,7 +583,10 @@ class DatasetValidator:
                         img_to_keep = [img for img in coco["images"] if img["id"] == hash_images[0]][0]
                         for img_id in hash_images[1:]:
                             try:
-                                img_to_delete = [img for img in coco["images"] if img["id"] == img_id and img["file_name"] != img_to_keep["file_name"]][0]
+                                img_to_delete = [
+                                    img for img in coco["images"] if
+                                    img["id"] == img_id and img["file_name"] != img_to_keep["file_name"]
+                                ][0]
                             except IndexError:
                                 continue
                             os.remove(osp.join(self.image_dir, img_to_delete["file_name"]))
@@ -643,8 +659,11 @@ class DatasetValidator:
                         )
                 return [
                     {
-                        "type": message_type,
-                        "message": f'Leakage was found between the "{split_name_1}" and "{split_name_2}" dataset splits as {len(leaked_images)} images (which represents {round(leaked_percentage_of_smaller * 100, 2)}% of the smaller "{smaller_split}" split) are duplicated between them.',
+                        'type': message_type,
+                        'message': f'Leakage was found between the "{split_name_1}" and "{split_name_2}" dataset splits'
+                                   f' as {len(leaked_images)} images (which represents '
+                                   f'{round(leaked_percentage_of_smaller * 100, 2)}% of the smaller "{smaller_split}" '
+                                   f'split) are duplicated between them.'
                     }
                 ]
             return []
@@ -661,7 +680,8 @@ class DatasetValidator:
                 (item, count) for item, count in Counter(images).items() if count > 1
             ]
             if len(duplicates) > 0:
-                if self.auto_fix and self.handle_permission(f'Auto-fix: Do you want to delete duplicate images in split "{coco_file_name}"? (y/n): '):
+                if self.auto_fix and self.handle_permission(
+                        f'Auto-fix: Do you want to delete duplicate images in split "{coco_file_name}"? (y/n): '):
                     for img, count in duplicates:
                         if count > 1:
                             indices = [i for i, d in enumerate(coco["images"]) if d["file_name"] == img]
@@ -669,7 +689,8 @@ class DatasetValidator:
                             for i in indices[1:]:
                                 img_to_delete = coco["images"][i]
                                 # routing all annotations to the image that will remain
-                                anns_for_img = [ann for ann in coco["annotations"] if ann["image_id"] == img_to_delete["id"]]
+                                anns_for_img = [ann for ann in coco["annotations"] if
+                                                ann["image_id"] == img_to_delete["id"]]
                                 for ann in anns_for_img:
                                     ann["image_id"] = img_to_remain["id"]
                                 del coco["images"][i]
@@ -680,9 +701,15 @@ class DatasetValidator:
                     with open(self.log_filepath, 'a') as file:
                         for img in duplicates:
                             file.write(
-                                f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation file.\n')
-                    return [{'type': 'warning',
-                            'message': f'{len(duplicates)} images are duplicated in the {coco_file_name} annotation file.'}]
+                                f'Image "{img[0]}" is duplicated {img[1]} times in the "{coco_file_name}" annotation '
+                                f'file.\n')
+                    return [
+                        {
+                            'type': 'warning',
+                            'message': f'{len(duplicates)} images are duplicated in the {coco_file_name} annotation '
+                                       f'file.'
+                        }
+                    ]
             return []
         except Exception:
             return []
@@ -718,7 +745,9 @@ class DatasetValidator:
                             else:
                                 split_dict["num_examples"] = real_num_examples
                                 _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
-                                log.debug(f"Auto-fix: changed num_examples for split {split_name} to {real_num_examples}")
+                                log.debug(
+                                    f"Auto-fix: changed num_examples for split {split_name} to {real_num_examples}"
+                                )
                     else:
                         if not self.auto_fix:
                             split_messages.append(
@@ -894,18 +923,13 @@ def validate_cli():
         type=str,
         required=True,
     )
-    # parser.add_argument("-w", "--working_dir", help="Working directory for logs.", type=str, required=False,
-    #                     default=None)
     parser.add_argument('--auto-fix', '-af', action='store_true', default=False,
                         help='Auto-fix smaller issues about your dataset. Resolves most warnings.')
     parser.add_argument('--yes', '-y', action='store_true', default=False,
                         help='Automatically agree to all prompts from the auto-fix tool. NOTE: choosing this option'
                              ' can modify your dataset images and annotation files.')
-    parser.add_argument('--verbose', '-v', action='count', default=0,
+    parser.add_argument('--verbose', '-v', action='count', required=False, default=0,
                         help="Verbosity level: -v, -vv")
-    # parser.add_argument("-a", "--annotations_required",
-    #                     help="Whether the dataset is required to have annotations. Defaults to True.", type=bool,
-    #                     required=False, default=True)
 
     args, _ = parser.parse_known_args()
 
@@ -928,7 +952,6 @@ def validate_cli():
         auto_fix=auto_fix,
         auto_fix_prompt=auto_fix_prompt
     )
-    # messages = dataset_validator.validate_dataset(args.annotations_required)
     while True:
         messages, restart = dataset_validator.validate_dataset()
         if not restart:
