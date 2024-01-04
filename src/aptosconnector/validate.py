@@ -27,6 +27,8 @@ class DatasetValidator:
             exit(1)
 
         self.root_dir = dataset_root_dir
+        self.image_dir = os.path.join(self.root_dir, 'images')
+        self.ann_dir = os.path.join(self.root_dir, 'annotations')
         self.working_dir = working_dir
         self.auto_fix = auto_fix
         self.log_filename = "dataset_validator_log.txt"
@@ -93,9 +95,6 @@ class DatasetValidator:
             )
             return self.messages
 
-        images_dir = osp.join(self.root_dir, "images")
-        annotations_dir = osp.join(self.root_dir, "annotations")
-
         thumbnail_path = osp.join(self.root_dir, "thumbnail.jpg")
         if not osp.exists(thumbnail_path):
             if not self.auto_fix:
@@ -104,7 +103,7 @@ class DatasetValidator:
                                                                     '"thumbnail.jpg" and place it inside the '
                                                                     'dataset root directory.'})
             else:
-                first_image = _get_first_image_from_dir(images_dir)
+                first_image = _get_first_image_from_dir(self.image_dir)
                 if first_image is not None:
                     shutil.copy(first_image, thumbnail_path)
                     log.debug(f"Auto-fix: thumbnail generated automatically from image '{first_image}'")
@@ -121,17 +120,15 @@ class DatasetValidator:
 
         annotations_messages = self.validate_annotations_and_images(
             annotations_required,
-            annotations_dir,
             ann_file_names,
             split_names,
             label_names,
-            images_dir,
         )
 
         self.messages += annotations_messages
 
         split_size_messages = self.validate_split_sizes(
-            dataset_infos_path, split_names, annotations_dir, images_dir
+            dataset_infos_path, split_names
         )
 
         self.messages += split_size_messages
@@ -335,34 +332,32 @@ class DatasetValidator:
         return messages, ann_file_names, split_names, label_names
 
     def validate_annotations_and_images(
-        self,
-        annotations_required: bool,
-        annotations_dir: str,
-        ann_file_names: List[str],
-        split_names: List[str],
-        label_names: List[str],
-        images_dir: str,
+            self,
+            annotations_required: bool,
+            ann_file_names: List[str],
+            split_names: List[str],
+            label_names: List[str],
     ):
         messages = []
 
-        if not osp.exists(annotations_dir) and annotations_required:
+        if not osp.exists(self.ann_dir) and annotations_required:
             messages.append(
                 {"type": "error", "message": 'The "annotations" folder is missing.'}
             )
-            if not osp.exists(images_dir):
+            if not osp.exists(self.image_dir):
                 messages.append(
                     {"type": "error", "message": 'The "images" folder is missing.'}
                 )
             return messages
 
-        if not osp.exists(images_dir):
+        if not osp.exists(self.image_dir):
             return [{"type": "error", "message": 'The "images" folder is missing.'}]
 
         if not annotations_required:
             return []
 
         for ann_file in ann_file_names:
-            if not osp.exists(osp.join(annotations_dir, ann_file)):
+            if not osp.exists(osp.join(self.ann_dir, ann_file)):
                 messages.append(
                     {
                         "type": "error",
@@ -370,30 +365,28 @@ class DatasetValidator:
                     }
                 )
             else:
-                messages += self.validate_coco_file(
-                    osp.join(annotations_dir, ann_file), images_dir, label_names
-                )
+                messages += self.validate_coco_file(osp.join(self.ann_dir, ann_file), label_names)
 
         for ann_file in ann_file_names:
-            messages += self.check_for_duplicate_images(images_dir, osp.join(annotations_dir, ann_file))
+            messages += self.check_for_duplicate_images(osp.join(self.ann_dir, ann_file))
         for ann_file in ann_file_names:
             messages += self.check_split_image_duplicates(
-                osp.join(annotations_dir, ann_file)
+                osp.join(self.ann_dir, ann_file)
             )
 
         for (i1, ann_file_1), (i2, ann_file_2) in combinations(
             enumerate(ann_file_names), 2
         ):
             messages += self.check_for_split_leakage(
-                osp.join(annotations_dir, ann_file_1),
-                osp.join(annotations_dir, ann_file_2),
+                osp.join(self.ann_dir, ann_file_1),
+                osp.join(self.ann_dir, ann_file_2),
                 split_names[i1],
                 split_names[i2],
             )
         return messages
 
     def validate_coco_file(
-        self, coco_file_path: str, image_dir: str, label_names: List[str]
+            self, coco_file_path: str, label_names: List[str]
     ):
         messages = []
         coco_file_name = osp.basename(coco_file_path)
@@ -423,7 +416,7 @@ class DatasetValidator:
             imgs_without_anns = []
 
             for img in coco["images"]:
-                img_path = osp.join(image_dir, img["file_name"])
+                img_path = osp.join(self.image_dir, img["file_name"])
                 if not osp.exists(img_path):
                     missing_images.append(img["file_name"])
                 anns_for_img = [
@@ -454,7 +447,7 @@ class DatasetValidator:
             if len(imgs_without_anns) > 0:
                 if self.auto_fix and self.handle_permission(f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '):
                     for img_filename in imgs_without_anns:
-                        img_path = osp.join(image_dir, img_filename)
+                        img_path = osp.join(self.image_dir, img_filename)
                         if osp.exists(img_path):
                             os.remove(img_path)
                     coco["images"] = [image for image in coco["images"] if
@@ -551,14 +544,14 @@ class DatasetValidator:
 
         return messages
 
-    def check_for_duplicate_images(self, images_dir: str, coco_path: str):
+    def check_for_duplicate_images(self, coco_path: str):
         hashes = dict()
         duplicate_count = 0
         with open(coco_path) as file:
             coco = json.load(file)
 
         for img in coco["images"]:
-            path = osp.join(images_dir, img["file_name"])
+            path = osp.join(self.image_dir, img["file_name"])
             if osp.isfile(path):
                 with open(path, "rb") as file:
                     file_hash = hashlib.sha256(file.read()).hexdigest()
@@ -578,7 +571,7 @@ class DatasetValidator:
                                 img_to_delete = [img for img in coco["images"] if img["id"] == img_id and img["file_name"] != img_to_keep["file_name"]][0]
                             except IndexError:
                                 continue
-                            os.remove(osp.join(images_dir, img_to_delete["file_name"]))
+                            os.remove(osp.join(self.image_dir, img_to_delete["file_name"]))
                             # routing all annotations to the kept image
                             for ann in coco["annotations"]:
                                 if ann["image_id"] == img_id:
@@ -594,7 +587,7 @@ class DatasetValidator:
                         with open(self.log_filepath, 'a') as file:
                             for hash_images in hashes.values():
                                 if len(hash_images) > 1:
-                                    relpaths = [osp.relpath(path, start=images_dir) for path in hash_images]
+                                    relpaths = [osp.relpath(path, start=self.image_dir) for path in hash_images]
                                     file.write(f'Images {relpaths} are duplicate.\n')
                     except Exception:
                         print(f"Log file not found or can't be opened: {self.log_filepath}")
@@ -689,11 +682,9 @@ class DatasetValidator:
             return []
 
     def validate_split_sizes(
-        self,
-        dataset_infos_path: str,
-        split_names: str,
-        annotations_dir: str,
-        images_dir: str,
+            self,
+            dataset_infos_path: str,
+            split_names: str,
     ):
         split_messages = []
         with open(dataset_infos_path, "r") as f:
@@ -703,11 +694,11 @@ class DatasetValidator:
         for split_name in split_names:
             try:
                 split_dict = dataset_info["splits"][split_name]
-                split_file_path = osp.join(annotations_dir, split_dict["dataset_name"])
+                split_file_path = osp.join(self.ann_dir, split_dict["dataset_name"])
                 with open(split_file_path) as file:
                     coco_dict = json.load(file)
 
-                real_num_examples = _calculate_split_num_imgs(coco_dict, images_dir)
+                real_num_examples = _calculate_split_num_imgs(coco_dict, self.image_dir)
                 if "num_examples" in split_dict:
                     if type(split_dict["num_examples"]) is int:
                         if real_num_examples != split_dict["num_examples"]:
@@ -747,7 +738,7 @@ class DatasetValidator:
                         _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
                         log.debug(f"Auto-fix: added num_examples for split {split_name}: {real_num_examples}")
 
-                real_bytes = _calculate_split_size(coco_dict, images_dir)
+                real_bytes = _calculate_split_size(coco_dict, self.image_dir)
                 if "num_bytes" in split_dict:
                     if type(split_dict["num_bytes"]) is int:
                         if real_bytes != split_dict["num_bytes"]:
