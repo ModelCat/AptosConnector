@@ -55,9 +55,9 @@ class DatasetValidator:
             print("Please validate dataset first")
             return
 
-        erros_count = len([m for m in self.messages if m.get("type") == "error"])
-        if erros_count:
-            print(f"Dataset not validated, {erros_count} error(s) found.")
+        errors_count = len([m for m in self.messages if m.get("type") == "error"])
+        if errors_count:
+            print(f"Dataset not validated, {errors_count} error(s) found.")
         else:
             print("No critical errors found")
             print("Creating dataset signature ...")
@@ -275,7 +275,8 @@ class DatasetValidator:
                         messages.append(
                             {
                                 'type': 'warning',
-                                'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in dataset, but {real_img_count} were found in the "images" directory.'
+                                'message': f'"dataset_infos.json" shows {dataset_info["dataset_size"]} images in '
+                                           f'dataset, but {real_img_count} were found in the "images" directory.'
                             }
                         )
                     else:
@@ -284,8 +285,14 @@ class DatasetValidator:
                         log.debug(f"Auto-fix: changed dataset_size to {real_img_count}.")
             else:
                 if not self.auto_fix:
-                    messages.append({'type': 'warning',
-                                     'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "dataset_size", {real_img_count} were found in the "images" directory.'})
+                    messages.append(
+                        {
+                            'type': 'warning',
+                            'message': f'"dataset_infos.json" doesn\'t contain a valid entry for '
+                                       f'"dataset_size", {real_img_count} were found in the "images" '
+                                       f'directory.'
+                        }
+                    )
                 else:
                     dataset_infos_json[dataset_name]["dataset_size"] = real_img_count
                     _reload_dataset_infos(dataset_infos_path, dataset_infos_json)
@@ -374,7 +381,8 @@ class DatasetValidator:
                 messages.append(
                     {
                         "type": "error",
-                        "message": f'The annotation file "{ann_file}" listed in "dataset_infos.json" is missing in the "annotations" folder.',
+                        "message": f'The annotation file "{ann_file}" listed in "dataset_infos.json" is missing in '
+                                   f'the "annotations" folder.',
                     }
                 )
             else:
@@ -421,7 +429,8 @@ class DatasetValidator:
                 messages.append(
                     {
                         "type": "error",
-                        "message": f'The category names in the annotation file "{coco_file_name}" do not match the label names in the "dataset_infos.json" file.',
+                        "message": f'The category names in the annotation file "{coco_file_name}" do not match the '
+                                   f'label names in the "dataset_infos.json" file.',
                     }
                 )
 
@@ -442,7 +451,8 @@ class DatasetValidator:
                 messages.append(
                     {
                         "type": "error",
-                        "message": f'The annotation file "{coco_file_name}" contains {len(missing_images)} images that are not found in the "images" folder.',
+                        "message": f'The annotation file "{coco_file_name}" contains {len(missing_images)} images '
+                                   f'that are not found in the "images" folder.',
                     }
                 )
                 if self.log_filepath is not None:
@@ -459,7 +469,8 @@ class DatasetValidator:
 
             if len(imgs_without_anns) > 0:
                 if self.auto_fix and self.handle_permission(
-                        f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation file? (y/n): '
+                        f'Auto-fix: remove all images without annotations from the "{coco_file_name}" annotation '
+                        f'file? (y/n):'
                 ):
                     for img_filename in imgs_without_anns:
                         img_path = osp.join(self.image_dir, img_filename)
@@ -480,7 +491,8 @@ class DatasetValidator:
                     messages.append(
                         {
                             'type': 'warning',
-                            'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} images that don\'t have corresponding annotations.'
+                            'message': f'The annotation file "{coco_file_name}" contains {len(imgs_without_anns)} '
+                                       f'images that don\'t have corresponding annotations.'
                         }
                     )
                     if self.log_filepath is not None:
@@ -488,7 +500,8 @@ class DatasetValidator:
                             with open(self.log_filepath, 'a') as file:
                                 for img in imgs_without_anns:
                                     file.write(
-                                        f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any annotations.\n')
+                                        f'Image "{img}" from the "{coco_file_name}" annotation file doesn\'t have any '
+                                        f'annotations.\n')
                         except Exception:
                             print(f"Log file not found or can't be opened: {self.log_filepath}")
 
@@ -543,7 +556,7 @@ class DatasetValidator:
                         "message": f'The annotation file "{coco_file_name}" contains annotations with '
                                    f"non-existent category IDs: "
                                    f"{list(set(ann_cat_ids).difference(set(category_ids)))}, "
-                                   f"where the allowed values are {category_ids}. Verify all vallues of "
+                                   f"where the allowed values are {category_ids}. Verify all values of "
                                    f"annotations[N].category_id are listed under categories[M].id "
                                    f'in "{coco_file_name}".',
                     }
@@ -618,13 +631,13 @@ class DatasetValidator:
             return []
 
     def check_for_split_leakage(
-        self,
-        ann_path_1: str,
-        ann_path_2: str,
-        split_name_1: str,
-        split_name_2: str,
-        train_duplicate_threshold_for_error: float = 0.03,
-        test_val_duplicate_threshold_for_error: float = 0.05
+            self,
+            ann_path_1: str,
+            ann_path_2: str,
+            split_name_1: str,
+            split_name_2: str,
+            train_duplicate_threshold_for_error: float = 0.03,
+            test_val_duplicate_threshold_for_error: float = 0.05
     ):
         try:
             with open(ann_path_1, "r") as f:
@@ -739,7 +752,9 @@ class DatasetValidator:
                                 split_messages.append(
                                     {
                                         'type': 'warning',
-                                        'message': f'"dataset_infos.json" shows {split_dict["num_examples"]} as number or images in split "{split_name}", but {real_num_examples} images were found in the dataset root directory.'
+                                        'message': f'"dataset_infos.json" shows {split_dict["num_examples"]} as number'
+                                                   f' of images in split "{split_name}", but {real_num_examples} images'
+                                                   f' were found in the dataset root directory.'
                                     }
                                 )
                             else:
@@ -753,7 +768,9 @@ class DatasetValidator:
                             split_messages.append(
                                 {
                                     'type': 'warning',
-                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_examples" for split "{split_name}", {real_num_examples} images were found in the dataset root directory.'
+                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for '
+                                               f'"num_examples" for split "{split_name}", {real_num_examples} images '
+                                               f'were found in the dataset root directory.'
                                 }
                             )
                         else:
@@ -765,7 +782,8 @@ class DatasetValidator:
                         split_messages.append(
                             {
                                 'type': 'warning',
-                                'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for split "{split_name}".'
+                                'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_examples" for '
+                                           f'split "{split_name}".'
                             }
                         )
                     else:
@@ -781,7 +799,9 @@ class DatasetValidator:
                                 split_messages.append(
                                     {
                                         'type': 'warning',
-                                        'message': f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of split "{split_name}", but real split size was calculated as {real_bytes} B.'
+                                        'message': f'"dataset_infos.json" shows {split_dict["num_bytes"]} B as size of'
+                                                   f' split "{split_name}", but real split size was calculated as '
+                                                   f'{real_bytes} B.'
                                     }
                                 )
                             else:
@@ -793,7 +813,9 @@ class DatasetValidator:
                             split_messages.append(
                                 {
                                     'type': 'warning',
-                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" for split "{split_name}", real split size was calculated as {real_bytes} B.'
+                                    'message': f'"dataset_infos.json" doesn\'t contain a valid entry for "num_bytes" '
+                                               f'for split "{split_name}", real split size was calculated as'
+                                               f' {real_bytes} B.'
                                 }
                             )
                         else:
@@ -805,7 +827,8 @@ class DatasetValidator:
                         split_messages.append(
                             {
                                 'type': 'warning',
-                                'message': f'"dataset_infos.json" doesn\'t contain an entry for "num_bytes" for split "{split_name}".'
+                                'message': f'"dataset_infos.json" doesn\'t contain an entry for '
+                                           f'"num_bytes" for split "{split_name}".'
                             }
                         )
                     else:
@@ -933,11 +956,8 @@ def validate_cli():
 
     args, _ = parser.parse_known_args()
 
-    print(
-        f'AptosConnector (v{pkg_resources.get_distribution("aptosconnector").version}) - dataset validation utility'.center(
-            100
-        )
-    )
+    aptosconnector_version = pkg_resources.get_distribution("aptosconnector").version
+    print(f'AptosConnector (v{aptosconnector_version}) - dataset validation utility'.center(100))
 
     if args.verbose:
         print(f"Validating dataset with args: {args}.")
