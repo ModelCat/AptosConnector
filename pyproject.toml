@@ -57,7 +57,8 @@ keywords = ["aptos", "dataset", "connector", "upload"]  # Optional
 # authored the project, and a valid email address corresponding to the name
 # listed.
 authors = [
-  {name = "Jeremi Wojcicki", email = "jeremi@etacompute.com" } # Optional
+  {name = "Jeremi Wojcicki", email = "jeremi@etacompute.com" },
+  {name = "Vedin Klovo", email = "vedin.klovo@etacompute.com"}
 ]
 
 # This should be your name or the names of the organization who currently
@@ -105,7 +106,8 @@ dependencies = [ # Optional
   "tqdm",
   "getpass_asterisk",
   "dirhash",
-  "scandir"
+  "scandir",
+  "pycocotools"
 ]
 
 # List additional groups of dependencies here (e.g. development
