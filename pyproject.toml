@@ -79,7 +79,7 @@ classifiers = [  # Optional
 
   # Indicate who your project is intended for
   "Intended Audience :: Developers",
-  "Topic :: Machine Learning :: Datasets",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
 
   # Pick your license as you wish
   "License :: OSI Approved :: MIT License",
