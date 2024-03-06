@@ -34,3 +34,28 @@ def check_aws_configuration(verbose: int = 0) -> bool:
         return False
 
     return True
+
+
+def check_s3_access(aptos_group_id: str, verbose: bool = False):
+
+    cmd = [
+        "aws",
+        "s3",
+        "ls",
+        f"s3://aptos-data/account/{aptos_group_id}/",
+        "--profile",
+        "aptos_user",
+    ]
+    outputs = []
+    try:
+        run_cli_command(
+            command=cmd,
+            verbose=verbose,
+            line_parser=lambda line: outputs.append(line.strip()),
+        )
+        print("S3 access verified")
+    except CLICommandError as e:
+        print(f"Cannot obtain AWS access: {e}")
+        return False
+
+    return True

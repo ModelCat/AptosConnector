@@ -114,6 +114,15 @@ def run_setup(verbose: int = 0):
     if not check_aws_configuration(verbose):
         print("Configuration failed.")
 
+    print("-" * 50)
+    # checking access to S3
+    print("Verifying AWS access...")
+    from aptosconnector.utils.aws import check_s3_access
+    if not check_s3_access(aptos_group_id, verbose=verbose):
+        print("Verification failed... Please check your credentials or contact customer support.")
+        exit(1)
+    print("Verification successfull.")
+
     # create Aptos config file
     aptos_config = {"aptos_group_id": aptos_group_id}
 
@@ -123,7 +132,7 @@ def run_setup(verbose: int = 0):
         json.dump(aptos_config, fp, indent=4)
 
     print("-" * 50)
-    print("Configuration successful!")
+    print("Configuration complete.")
     print("")
     print("Now you can use:")
     print(
