@@ -9,8 +9,8 @@ import uuid
 from tqdm import tqdm
 import argparse
 from pathlib import Path
-from aptosconnector.utils.cli import CLICommandError
-from aptosconnector.utils.aws import check_aws_configuration
+# from aptosconnector.utils.cli import CLICommandError
+from aptosconnector.utils.aws import check_aws_configuration, check_s3_access
 import pkg_resources
 
 
@@ -25,6 +25,13 @@ class DatasetUploader:
         self.dataset_root = dataset_root_dir
         self.aptos_group_id = aptos_group_id
         self.verbose = verbose
+
+        if not self.is_valid_uuid(self.aptos_group_id):
+            print(
+                f'Provided `Aptos Group ID` ({self.aptos_group_id}) does not have a correct format. '
+                'It should be a valid UUID e.g. "461b1b66-8787-11ed-aff3-07f20767316e"'
+            )
+            exit(1)
 
         self.ignore_validation = ignore_validation
 
@@ -43,7 +50,7 @@ class DatasetUploader:
         self.dataset_name = self.normalize_ds_name(list(ds_infos.keys())[0])
         self.s3_uri = f"s3://aptos-data/account/{self.aptos_group_id}/datasets/{self.dataset_name}/"
 
-        if not self.check_s3_access():
+        if not check_s3_access(self.aptos_group_id, verbose=self.verbose):
             exit(1)
 
     def dataset_check(self):
@@ -84,34 +91,6 @@ class DatasetUploader:
             return False
 
         print("Done!")
-
-        return True
-
-    def check_s3_access(self):
-        if not self.is_valid_uuid(self.aptos_group_id):
-            print(
-                'Provided `Aptos Group ID` does not have a correct format. It should be a valid UUID e.g. "461b1b66-8787-11ed-aff3-07f20767316e" '
-            )
-
-        cmd = [
-            "aws",
-            "s3",
-            "ls",
-            f"s3://aptos-data/account/{self.aptos_group_id}/",
-            "--profile",
-            "aptos_user",
-        ]
-        outputs = []
-        try:
-            run_cli_command(
-                command=cmd,
-                verbose=self.verbose,
-                line_parser=lambda line: outputs.append(line.strip()),
-            )
-            print("S3 access verified")
-        except CLICommandError as e:
-            print(f"Cannot obtain AWS access: {e}")
-            return False
 
         return True
 
