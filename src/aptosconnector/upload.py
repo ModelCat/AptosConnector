@@ -97,7 +97,7 @@ class DatasetUploader:
             "aws",
             "s3",
             "ls",
-            f"s3://aptos-data/account/{self.aptos_group_id}",
+            f"s3://aptos-data/account/{self.aptos_group_id}/",
             "--profile",
             "aptos_user",
         ]
