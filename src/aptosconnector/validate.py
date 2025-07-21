@@ -868,8 +868,6 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "images.width")
             if "height" not in img:
                 return self._create_param_error_message(coco_file_name, "images.height")
-            if "date_captured" not in img:
-                return self._create_param_error_message(coco_file_name, "images.date_captured")
         for ann in coco["annotations"]:
             if "id" not in ann:
                 return self._create_param_error_message(coco_file_name, "annotations.id")
