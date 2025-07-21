@@ -427,8 +427,7 @@ class DatasetValidator:
             param_errors = self.param_check(coco, coco_file_name)
             if param_errors:
                 messages.extend(param_errors)
-                return messages  
-            
+                return messages
             category_names = [cat["name"] for cat in coco["categories"]]
             if not set(category_names) == set(label_names):
                 messages.append(
@@ -860,7 +859,6 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "categories.id")
             if "name" not in cat:
                 return self._create_param_error_message(coco_file_name, "categories.name")
-        
         for img in coco["images"]:
             if "id" not in img:
                 return self._create_param_error_message(coco_file_name, "images.id")
@@ -872,7 +870,6 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "images.height")
             if "date_captured" not in img:
                 return self._create_param_error_message(coco_file_name, "images.date_captured")
-        
         for ann in coco["annotations"]:
             if "id" not in ann:
                 return self._create_param_error_message(coco_file_name, "annotations.id")
@@ -880,7 +877,6 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "annotations.image_id")
             if "category_id" not in ann:
                 return self._create_param_error_message(coco_file_name, "annotations.category_id")
-        
         return []
 
     def handle_permission(self, message):
