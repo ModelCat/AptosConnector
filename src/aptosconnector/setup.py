@@ -1,4 +1,5 @@
 from aptosconnector.utils import run_cli_command
+from aptosconnector.utils.api import AwsAccessClient, APIConfig, APTOS_URL, APIError
 from aptosconnector.utils.aws import check_awscli, check_aws_configuration
 from pathlib import Path
 import os.path as osp
@@ -8,7 +9,7 @@ import re
 import uuid
 from getpass_asterisk.getpass_asterisk import getpass_asterisk as getpass
 
-_DEFAULT_REGION = "us-east-1"
+_DEFAULT_REGION = "us-east-2"
 _DEFAULT_FORMAT = "json"
 _DEFAULT_AWS_PROFILE = "aptos_user"
 
@@ -39,24 +40,27 @@ def run_setup(verbose: int = 0):
             )
 
     while 1:
-        aws_access_key = input("Aptos AWS Access Key ID: ")
-        if re.match("(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])", aws_access_key):
+        aptos_oauth_token = getpass("Aptos OAuth Token: ")
+        if re.match(r"^\d+_[a-f0-9]{40}$", aptos_oauth_token):
             break
         print(
-            "Oops... This does not look right. `Aptos AWS Access Key ID` should be a 20 character alpha-numerical string e.g.: BCASYP3U22NYBISXY5IL"
+            "Oops... This does not look right. `Aptos OAuth Token` should be an integer followed by an underscore, followed by a 40 character string e.g.: 1_1234567890abcdef1234567890abcdef12345678"
         )
 
-    while 1:
-        aws_secret_access_key = getpass("Aptos AWS Secret Access Key: ")
-        # aws_secret_access_key   = input("Aptos AWS Secret Access Key: ")
-        if re.match(
-            "(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])",
-            aws_secret_access_key,
-        ):
-            break
-        print(
-            "Oops... This does not look right. `Aptos AWS Secret Access Key` should be a 40 character string e.g.: bul7642gBX/hCshqU48wXc5Xt8gO+SEdswOho2YM"
+    # get the AWS access key credentials
+    try:
+        api_config = APIConfig(
+            base_url=APTOS_URL,
+            oauth_token=aptos_oauth_token,
         )
+        storage_token_client = AwsAccessClient(api_config)
+        creds = storage_token_client.get_aws_access(aptos_group_id)
+
+        aws_access_key = creds["access_key_id"]
+        aws_secret_access_key = creds["secret_access_key"]
+    except APIError as ae:
+        print(f"Aptos API error: {ae}")
+        exit(1)
 
     # configure AWS CLI
     outputs = []
@@ -118,13 +122,16 @@ def run_setup(verbose: int = 0):
     # checking access to S3
     print("Verifying AWS access...")
     from aptosconnector.utils.aws import check_s3_access
-    if not check_s3_access(aptos_group_id, verbose=verbose):
+    if not check_s3_access(aptos_group_id, verbose=verbose > 0):
         print("Verification failed... Please check your credentials or contact customer support.")
         exit(1)
-    print("Verification successfull.")
+    print("Verification successful.")
 
     # create Aptos config file
-    aptos_config = {"aptos_group_id": aptos_group_id}
+    aptos_config = {
+        "aptos_group_id": aptos_group_id,
+        "aptos_oauth_token": aptos_oauth_token,
+    }
 
     aptos_path = osp.join(Path.home(), ".aptos")
     os.makedirs(aptos_path, exist_ok=True)
