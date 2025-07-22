@@ -124,7 +124,7 @@ class BaseAPIClient:
             raise APIError(f"Failed to parse API response: {str(e)}")
         except requests.exceptions.RequestException as e:
             if result is not None:
-                raise APIError(f"""API request failed with the following details: 
+                raise APIError(f"""API request failed with the following details:
 {json.dumps(result, indent=2)}"""
                                )
             raise APIError(f"Request failed: {str(e)}")
@@ -245,27 +245,3 @@ class AptosClient(BaseAPIClient):
             raise APIError(f"Job submission error: {error_msg}")
 
         return result
-
-
-if __name__ == '__main__':
-    aptos_group_id = "3d21f8e0-8aaf-11ed-aff2-06f20767316e"
-    aptos_oauth_token = "47514_dd112fcecc5cb21474992afd4ad02006d2fde7b1"
-    dataset_uri = "s3://aptos-data/account/3d21f8e0-8aaf-11ed-aff2-06f20767316e/datasets/aptos_classification_sample"
-    dataset_name = "aptos_classification_sample"
-    job_name = "AptosConnector Dataset Analysis"
-    env = "dont run"
-
-    config = APIConfig(
-        base_url=APTOS_URL,
-        oauth_token=aptos_oauth_token,
-    )
-
-    aptos_client = AptosClient(config)
-
-    submit_res = aptos_client.submit_dataset_analysis(
-        dataset_uri=dataset_uri,
-        aptos_group_id=aptos_group_id,
-        dataset_name=dataset_name,
-        env=env,
-    )
-

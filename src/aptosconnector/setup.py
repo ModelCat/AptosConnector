@@ -1,5 +1,3 @@
-import time
-
 from aptosconnector.utils import run_cli_command
 from aptosconnector.utils.api import AptosClient, APIConfig, APTOS_URL, APIError
 from aptosconnector.utils.aws import check_awscli, check_aws_configuration

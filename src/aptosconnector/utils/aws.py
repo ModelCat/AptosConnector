@@ -38,7 +38,7 @@ def check_aws_configuration(verbose: int = 0) -> bool:
     return True
 
 
-@retry(exceptions=Exception, delay=20, tries=6, backoff=1) # trying for 6 * 20 = 120 seconds
+@retry(exceptions=Exception, delay=20, tries=6, backoff=1)  # trying for 6 * 20 = 120 seconds
 def check_s3_access(aptos_group_id: str, verbose: bool = False) -> None:
 
     cmd = [
