@@ -107,7 +107,8 @@ dependencies = [ # Optional
   "getpass_asterisk",
   "checksumdir",
   "scandir",
-  "pycocotools"
+  "pycocotools",
+  "retry"
 ]
 
 # List additional groups of dependencies here (e.g. development

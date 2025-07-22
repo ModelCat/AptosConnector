@@ -1,5 +1,7 @@
+import time
+
 from aptosconnector.utils import run_cli_command
-from aptosconnector.utils.api import AwsAccessClient, APIConfig, APTOS_URL, APIError
+from aptosconnector.utils.api import AptosClient, APIConfig, APTOS_URL, APIError
 from aptosconnector.utils.aws import check_awscli, check_aws_configuration
 from pathlib import Path
 import os.path as osp
@@ -53,8 +55,8 @@ def run_setup(verbose: int = 0):
             base_url=APTOS_URL,
             oauth_token=aptos_oauth_token,
         )
-        storage_token_client = AwsAccessClient(api_config)
-        creds = storage_token_client.get_aws_access(aptos_group_id)
+        aptos_client = AptosClient(api_config)
+        creds = aptos_client.get_aws_access(aptos_group_id)
 
         aws_access_key = creds["access_key_id"]
         aws_secret_access_key = creds["secret_access_key"]
@@ -121,8 +123,11 @@ def run_setup(verbose: int = 0):
     print("-" * 50)
     # checking access to S3
     print("Verifying AWS access...")
+    # some retries to let the AWS access key propagate
     from aptosconnector.utils.aws import check_s3_access
-    if not check_s3_access(aptos_group_id, verbose=verbose > 0):
+    try:
+        check_s3_access(aptos_group_id, verbose=verbose > 0)
+    except Exception:
         print("Verification failed... Please check your credentials or contact customer support.")
         exit(1)
     print("Verification successful.")
