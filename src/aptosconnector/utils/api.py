@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-APTOS_URL = "http://localhost:1234"
+APTOS_URL = "https://aptos.training"
 
 
 @dataclass
