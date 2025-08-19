@@ -14,7 +14,7 @@ Your dataset needs to be structured in a certain way to be properly recognized b
 * `annotations/` - directory containing splits/annotations
 * `images/` - directory containing images of your dataset
 
-Together with this instruction you can find [dataset samples](/../sample_datasets/) which demonstrate a correct way to prepare your data:
+Together with this instruction you can find [dataset samples](../sample_datasets/) which demonstrate a correct way to prepare your data:
 
 * `aptos_classification_catsdogs_sample` – for classification
 * `aptos_objectdetection_sample` – for object detection
