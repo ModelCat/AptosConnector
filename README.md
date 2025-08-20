@@ -51,7 +51,11 @@ In order to prepare your dataset, please follow our guide: [Dataset preparation 
 
 ### AptosConnector Setup
 
-This one-time only procedure will configure AptosConnector's access to Aptos platform. You will need to provide your `Aptos Group ID`, `Aptos AWS Access Key ID` and `Aptos AWS Secret Access Key`:
+This one-time procedure will configure AptosConnector's access to the Aptos platform. You will need to provide your `Aptos Group ID` and `Aptos OAuth Token`.
+
+> **Note:** The OAuth token is used to authenticate with the Aptos platform. You can obtain your OAuth token from the Aptos platform. The token format should be an integer followed by an underscore, followed by a 40 character hexadecimal string (e.g., `1_1234567890abcdef1234567890abcdef12345678`).
+>
+> When you provide your OAuth token, AptosConnector will use it to authenticate with the Aptos API and automatically retrieve temporary AWS credentials. These credentials are then configured in your AWS CLI profile for seamless access to Aptos resources.
 
 ```
 (aptos_env) user@ubuntu: aptos_setup
@@ -61,10 +65,12 @@ We'll get you started in just a few simple steps!
 AWS CLI installation verified.
 --------------------------------------------------
 Aptos Group ID: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXX
-Aptos AWS Access Key ID: XXXXXXXXXXXXXXXXXXXX
-Aptos AWS Secret Access Key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+Aptos OAuth Token: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 --------------------------------------------------
-Configuration successful!
+Verifying AWS access...
+Verification successful.
+--------------------------------------------------
+Configuration complete!
 
 Now you can use:
         `aptos_validate` to check your dataset for errors and verify Aptos interoperability

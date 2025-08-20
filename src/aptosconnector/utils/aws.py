@@ -1,3 +1,5 @@
+from retry import retry
+
 from . import run_cli_command, CLICommandError
 import logging as log
 
@@ -36,7 +38,8 @@ def check_aws_configuration(verbose: int = 0) -> bool:
     return True
 
 
-def check_s3_access(aptos_group_id: str, verbose: bool = False):
+@retry(exceptions=Exception, delay=20, tries=6, backoff=1)  # trying for 6 * 20 = 120 seconds
+def check_s3_access(aptos_group_id: str, verbose: bool = False) -> None:
 
     cmd = [
         "aws",
@@ -56,6 +59,4 @@ def check_s3_access(aptos_group_id: str, verbose: bool = False):
         print("S3 access verified")
     except CLICommandError as e:
         print(f"Cannot obtain AWS access: {e}")
-        return False
-
-    return True
+        raise

@@ -9,6 +9,9 @@ import uuid
 from tqdm import tqdm
 import argparse
 from pathlib import Path
+
+from aptosconnector.utils.api import APIConfig, APTOS_URL, AptosClient, APIError
+
 # from aptosconnector.utils.cli import CLICommandError
 from aptosconnector.utils.aws import check_aws_configuration, check_s3_access
 import pkg_resources
@@ -19,12 +22,14 @@ class DatasetUploader:
         self,
         dataset_root_dir: str,
         aptos_group_id: str,
+        aptos_oauth_token: str = None,
         ignore_validation: bool = False,
         verbose: int = 0,  # 1 for info, 2 for debug
     ):
         self.dataset_root = dataset_root_dir
         self.aptos_group_id = aptos_group_id
         self.verbose = verbose
+        self.aptos_oauth_token = aptos_oauth_token
 
         if not self.is_valid_uuid(self.aptos_group_id):
             print(
@@ -46,11 +51,13 @@ class DatasetUploader:
             exit(1)
 
         with open(osp.join(self.dataset_root, "dataset_infos.json")) as fp:
-            ds_infos = json.load(fp)
-        self.dataset_name = self.normalize_ds_name(list(ds_infos.keys())[0])
+            self.dataset_infos = json.load(fp)
+        self.dataset_name = self.normalize_ds_name(list(self.dataset_infos.keys())[0])
         self.s3_uri = f"s3://aptos-data/account/{self.aptos_group_id}/datasets/{self.dataset_name}/"
 
-        if not check_s3_access(self.aptos_group_id, verbose=self.verbose):
+        try:
+            check_s3_access(self.aptos_group_id, verbose=self.verbose > 0)
+        except Exception:
             exit(1)
 
     def dataset_check(self):
@@ -135,11 +142,33 @@ class DatasetUploader:
                 line_parser=report_progress,
             )
 
-        print("-" * 100)
-        print(
-            "Upload complete. You can view your dataset at: "
-            f"https://aptos.training/datasets/{self.aptos_group_id}/{self.dataset_name}"
-        )
+        try:
+            print("Registering dataset in Aptos platform...")
+            api_config = APIConfig(
+                base_url=APTOS_URL,
+                oauth_token=self.aptos_oauth_token,
+            )
+            aptos_client = AptosClient(api_config)
+            register_data = aptos_client.register_dataset(
+                name=self.dataset_name,
+                s3_uri=self.s3_uri,
+                dataset_infos=self.dataset_infos,
+            )
+
+            print("Running Dataset Analysis immediately after registration...")
+            aptos_client.submit_dataset_analysis(
+                dataset_uri=self.s3_uri,
+                aptos_group_id=self.aptos_group_id,
+                dataset_name=self.dataset_name,
+            )
+            print("-" * 100)
+            print(
+                f"Dataset uploaded with uuid \'{register_data['uuid']}\'. You can view your dataset at: "
+                f"https://aptos.training/datasets/{self.aptos_group_id}/{self.dataset_name}"
+            )
+        except APIError as ae:
+            print(f"Aptos API error: {ae}")
+            exit(1)
 
     @staticmethod
     def _count_files(folder: str):
@@ -221,10 +250,12 @@ def upload_cli():
     with open(osp.join(aptos_path, "config.json")) as fp:
         aptos_config = json.load(fp)
     group_id = aptos_config.get("aptos_group_id", None)
+    oauth_token = aptos_config.get("aptos_oauth_token", None)
     log.info(f"Group ID: {group_id}")
 
     dsu = DatasetUploader(
-        aptos_group_id=group_id,  # args.account_id,
+        aptos_group_id=group_id,
+        aptos_oauth_token=oauth_token,
         dataset_root_dir=args.dataset_path,
         verbose=args.verbose,
     )
