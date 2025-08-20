@@ -854,11 +854,33 @@ class DatasetValidator:
         }]
 
     def param_check(self, coco: dict, coco_file_name: str):
+        """
+        Validate that a COCO annotation dictionary includes the required sections and subsections.
+
+        Required params:
+          - "categories" (list of dicts with keys: id, name)
+          - "images" (list of dicts with keys: id, file_name, width, height)
+          - "annotations" (list of dicts with keys: id, image_id, category_id)
+
+        Returns:
+          - None if validation passes.
+          - A list containing one error dict (from _create_param_error_message)
+        """
+        # Parent param checks
+        for section in ("categories", "images", "annotations"):
+            if section not in coco:
+                return self._create_param_error_message(coco_file_name, section)
+            if not isinstance(coco[section], list):
+                return self._create_param_error_message(coco_file_name, section)
+
+        # categories.* checks
         for cat in coco["categories"]:
             if "id" not in cat:
                 return self._create_param_error_message(coco_file_name, "categories.id")
             if "name" not in cat:
                 return self._create_param_error_message(coco_file_name, "categories.name")
+
+        # images.* checks
         for img in coco["images"]:
             if "id" not in img:
                 return self._create_param_error_message(coco_file_name, "images.id")
@@ -868,6 +890,8 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "images.width")
             if "height" not in img:
                 return self._create_param_error_message(coco_file_name, "images.height")
+
+        # annotations.* checks
         for ann in coco["annotations"]:
             if "id" not in ann:
                 return self._create_param_error_message(coco_file_name, "annotations.id")
@@ -875,6 +899,8 @@ class DatasetValidator:
                 return self._create_param_error_message(coco_file_name, "annotations.image_id")
             if "category_id" not in ann:
                 return self._create_param_error_message(coco_file_name, "annotations.category_id")
+
+        # No errors found
         return []
 
     def handle_permission(self, message):
