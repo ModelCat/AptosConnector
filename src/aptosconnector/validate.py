@@ -424,6 +424,10 @@ class DatasetValidator:
             ]
 
         try:
+            param_errors = self.param_check(coco, coco_file_name)
+            if param_errors:
+                messages.extend(param_errors)
+                return messages
             category_names = [cat["name"] for cat in coco["categories"]]
             if not set(category_names) == set(label_names):
                 messages.append(
@@ -842,6 +846,62 @@ class DatasetValidator:
                 )
 
         return split_messages
+
+    def _create_param_error_message(self, coco_file_name: str, param_name: str):
+        return [{
+            "type": "error",
+            "message": f'The annotation file "{coco_file_name}" is missing required parameter "{param_name}"'
+        }]
+
+    def param_check(self, coco: dict, coco_file_name: str):
+        """
+        Validate that a COCO annotation dictionary includes the required sections and subsections.
+
+        Required params:
+          - "categories" (list of dicts with keys: id, name)
+          - "images" (list of dicts with keys: id, file_name, width, height)
+          - "annotations" (list of dicts with keys: id, image_id, category_id)
+
+        Returns:
+          - None if validation passes.
+          - A list containing one error dict (from _create_param_error_message)
+        """
+        # Parent param checks
+        for section in ("categories", "images", "annotations"):
+            if section not in coco:
+                return self._create_param_error_message(coco_file_name, section)
+            if not isinstance(coco[section], list):
+                return self._create_param_error_message(coco_file_name, section)
+
+        # categories.* checks
+        for cat in coco["categories"]:
+            if "id" not in cat:
+                return self._create_param_error_message(coco_file_name, "categories.id")
+            if "name" not in cat:
+                return self._create_param_error_message(coco_file_name, "categories.name")
+
+        # images.* checks
+        for img in coco["images"]:
+            if "id" not in img:
+                return self._create_param_error_message(coco_file_name, "images.id")
+            if "file_name" not in img:
+                return self._create_param_error_message(coco_file_name, "images.file_name")
+            if "width" not in img:
+                return self._create_param_error_message(coco_file_name, "images.width")
+            if "height" not in img:
+                return self._create_param_error_message(coco_file_name, "images.height")
+
+        # annotations.* checks
+        for ann in coco["annotations"]:
+            if "id" not in ann:
+                return self._create_param_error_message(coco_file_name, "annotations.id")
+            if "image_id" not in ann:
+                return self._create_param_error_message(coco_file_name, "annotations.image_id")
+            if "category_id" not in ann:
+                return self._create_param_error_message(coco_file_name, "annotations.category_id")
+
+        # No errors found
+        return []
 
     def handle_permission(self, message):
         if self.auto_fix_prompt:
